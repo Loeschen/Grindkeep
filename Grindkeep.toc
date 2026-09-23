@@ -1,0 +1,27 @@
+## Interface: 120100, 120105, 16001
+## Title: Grindkeep
+## Notes: Guild bank log and stock tracker: who deposited and took what, search, minimum stock, alt linking.
+## Title-deDE: Grindkeep
+## Notes-deDE: Gildenbank-Protokoll und Bestand: wer hat was eingelegt und entnommen, Suche, Mindestbestände, Twink-Zuordnung.
+## Author: Bobcation
+## Version: 1.3.0
+## Category: Guild
+## IconTexture: Interface\Icons\INV_Misc_Coin_02
+## AddonCompartmentFunc: Grindkeep_OnAddonCompartmentClick
+## SavedVariables: GrindkeepDB
+
+Locale.lua
+Database.lua
+Style.lua
+Theme.lua
+Core.lua
+Storage.lua
+Comm.lua
+Loot.lua
+UI.lua
+Stock.lua
+Search.lua
+Collect.lua
+Export.lua
+Help.lua
+Options.lua
