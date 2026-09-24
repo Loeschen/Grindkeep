@@ -20,6 +20,7 @@ Grindkeep merkt sich, was in der Gildenbank passiert, und zeigt es übersichtlic
 - **Lager-Twinks:** eigene Charaktere als Lager markieren, Taschen und Bank werden dann automatisch erfasst.
 - **Sammelliste:** Ziele wie „200 Kupfererz für die Bank“ anlegen und den Fortschritt verfolgen.
 - **Export:** Sammelliste, Bestand, Vorgänge und Bilanz als Discord-Text (automatisch in Nachrichten unter 2000 Zeichen geteilt), als CSV für Excel/Google Sheets oder als reinen Text.
+- **Bot-Export:** `/gkeep bot` gibt den Gildenbank-Bestand als maschinenlesbaren Text für den Grindhub-Discord-Bot aus (Format: [docs/export-format.md](docs/export-format.md)).
 - **Beute:** optional, wer in Gruppe oder Raid welchen Gegenstand bekommen hat.
 - **Designs:** Klassisch (passend zu WoW), Modern, Minimal und Glas, dazu eine frei wählbare Akzentfarbe (Zahnrad oben rechts).
 
@@ -27,6 +28,7 @@ Grindkeep merkt sich, was in der Gildenbank passiert, und zeigt es übersichtlic
 
 - Der Reiter **Grindkeep** an der Gildenbank öffnet das Fenster, ebenso `/gkeep` oder das Addon-Menü an der Minikarte.
 - Das Protokoll wird eingelesen, sobald die Gildenbank geöffnet ist. Blizzard speichert nur die letzten Vorgänge je Fach, deshalb die Bank ruhig regelmäßig öffnen.
+- `/grindkeep` funktioniert genauso wie `/gkeep`.
 - `/gkeep help` zeigt alle Befehle, z. B. `/gkeep lager an`, `/gkeep sammel`, `/gkeep bericht bestand`.
 
 ### Hinweis zu WoW Forever (Beta)
@@ -48,14 +50,15 @@ Grindkeep records what happens in your guild bank and shows it in one tabbed win
 - **Storage alts:** mark your own characters as storage; their bags and bank are recorded automatically.
 - **Collection list:** goals such as "200 Copper Ore for the bank" with progress tracking.
 - **Export:** collection list, stock, transactions and balances as Discord text (split into messages below 2000 characters), CSV for Excel/Google Sheets, or plain text.
+- **Bot export:** `/gkeep bot` prints the guild bank contents as machine-readable text for the Grindhub Discord bot (format: [docs/export-format.md](docs/export-format.md), in German).
 - **Loot:** optional record of who received which item in groups and raids.
 - **Skins:** Classic (WoW style), Modern, Minimal and Glass, plus an accent colour of your choice (gear icon, top right).
 
-The interface is currently in German; English texts are partly available.
+The interface follows the game language: German on German clients, English otherwise.
 
 ### Usage
 
-Open the window with the **Grindkeep** tab at the guild bank, with `/gkeep`, or from the addon compartment on the minimap. `/gkeep help` lists all commands.
+Open the window with the **Grindkeep** tab at the guild bank, with `/gkeep` (or `/grindkeep`), or from the addon compartment on the minimap. `/gkeep help` lists all commands.
 
 ---
 

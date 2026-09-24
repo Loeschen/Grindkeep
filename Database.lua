@@ -1074,7 +1074,9 @@ function Database.SetStorageChar(key, enabled)
     if enabled then
         local c = root[key] or { bags = {}, bank = {} }
         c.enabled = true
-        c.name = c.name or (key:match("^([^-]+)") or key)
+        -- Realm nur abtrennen, wenn es wirklich einer ist (Nachnamen koennen
+        -- Bindestriche enthalten, siehe Names.lua)
+        c.name = c.name or (_G.GrindkeepNames and _G.GrindkeepNames.Base(key)) or key
         root[key] = c
     elseif root[key] then
         root[key].enabled = false

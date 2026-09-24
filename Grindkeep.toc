@@ -11,6 +11,7 @@
 ## SavedVariables: GrindkeepDB
 
 Locale.lua
+Names.lua
 Database.lua
 Style.lua
 Theme.lua
@@ -23,5 +24,6 @@ Stock.lua
 Search.lua
 Collect.lua
 Export.lua
+BotExport.lua
 Help.lua
 Options.lua

@@ -303,7 +303,7 @@ local function InitRow(button, entry)
     button.sources = entry.sources
     button.icon:SetTexture((entry.itemID and GetItemIconCompat(entry.itemID)) or 134400)
 
-    local label = entry.itemLink or entry.itemName or ("Item " .. tostring(entry.itemID))
+    local label = entry.itemLink or entry.itemName or string.format(L["ITEM_FALLBACK"], tostring(entry.itemID))
     button.text:SetText(string.format("|cffffffff%d|r x %s", entry.have or entry.count or 0, label))
 
     if entry.required then
@@ -435,7 +435,7 @@ local function RefreshStorageInfo()
         local bank = c.bankAt and date(L["DATE_FORMAT_SHORT"], c.bankAt) or L["STORAGE_BANK_NEVER"]
         table.insert(parts, string.format(L["STOCK_STORAGE_ENTRY"], c.name, bank))
     end
-    storageInfo:SetText(L["STOCK_STORAGE_PREFIX"] .. " " .. table.concat(parts, "  |  "))
+    storageInfo:SetText(L["STOCK_STORAGE_PREFIX"] .. " " .. table.concat(parts, "  /  "))
 end
 
 Refresh = function()

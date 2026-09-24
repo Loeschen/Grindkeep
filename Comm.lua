@@ -21,10 +21,11 @@
 
     - Der Rang des Absenders wird frisch im EIGENEN Gildenroster
       nachgeschlagen, nie aus der Nachricht uebernommen.
-    - Namen werden vollstaendig mit Realm verglichen ("Name-Realm").
-      Frueher wurde der Realm abgeschnitten - dann haette ein Fremder
-      von einem anderen Realm mit dem Namen eines Offiziers dessen
-      Rechte bekommen.
+    - Namen werden mit Realm verglichen (Names.lua). Ein Anhang "-Xyz"
+      zaehlt nur als Realm, wenn es der eigene oder ein verbundener ist -
+      ein Namensvetter von einem fremden Realm bekommt so nie die Rechte
+      eines Offiziers. Fehlt der Realm auf einer Seite (Forever-Roster),
+      gilt bei mehreren Treffern der niedrigste Rang.
     - Zuordnungen und Loot werden nur ueber den Gildenkanal akzeptiert.
       Eine Sammelantwort (ALTSYNC) nur als Fluesternachricht und nur,
       wenn wir kurz vorher selbst danach gefragt haben.
@@ -49,39 +50,17 @@ local function Print(msg)
 end
 
 -- ============================================================
--- Namen
+-- Namen (Zerlegen und Vergleichen: siehe Names.lua)
 -- ============================================================
-local function MyRealm()
-    local realm = GetNormalizedRealmName and GetNormalizedRealmName() or nil
-    if realm == "" then realm = nil end
-    return realm
-end
+local Names = _G.GrindkeepNames
 
--- Vollstaendiger Name "Name-Realm". Namen ohne Realm gehoeren zum eigenen
--- Realm. Liefert ein Client gar keinen Realm, bleibt der Name, wie er ist.
-local function FullName(name)
-    if type(name) ~= "string" or name == "" then return nil end
-    if name:find("-", 1, true) then return name end
-    local realm = MyRealm()
-    return realm and (name .. "-" .. realm) or name
-end
-
+-- Anzeigename ohne (eigenen oder verbundenen) Realm
 local function ShortName(name)
-    if type(name) ~= "string" then return "?" end
-    return name:match("^([^-]+)") or name
+    return Names.Base(name)
 end
 
--- Sind a und b derselbe Charakter? Mit Realm auf beiden Seiten wird exakt
--- verglichen (sonst koennte sich ein Namensvetter von einem anderen Realm
--- als Offizier ausgeben). Liefert ein Client auf einer Seite keinen Realm
--- (und kennt auch den eigenen nicht), bleibt nur der Name.
 local function SameCharacter(a, b)
-    local fa, fb = FullName(a), FullName(b)
-    if not fa or not fb then return false end
-    if fa == fb then return true end
-    local aHasRealm, bHasRealm = fa:find("-", 1, true) ~= nil, fb:find("-", 1, true) ~= nil
-    if aHasRealm and bHasRealm then return false end
-    return ShortName(fa) == ShortName(fb)
+    return (Names.Same(a, b))
 end
 
 local function ValidName(name)
@@ -96,17 +75,28 @@ local function TrustedRankMax()
     return DB.GetSetting("syncTrustedRank")
 end
 
+-- Rang aus dem eigenen Roster. Auf Forever liefert das Roster Namen ohne
+-- Realm - passen dann mehrere Eintraege (gleicher Name auf verbundenen
+-- Realms), zaehlt der niedrigste Rang (hoechster Index): im Zweifel
+-- weniger Vertrauen statt mehr.
 local function RosterEntry(name)
     if not IsInGuild or not IsInGuild() then return nil end
-    if not FullName(name) then return nil end
+    if type(name) ~= "string" or name == "" then return nil end
     local num = GetNumGuildMembers and GetNumGuildMembers() or 0
+    local exactRank, exactOnline, looseRank, looseOnline
     for i = 1, num do
         local fullName, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
-        if fullName and SameCharacter(fullName, name) then
-            return rankIndex, online
+        if fullName and rankIndex then
+            local same, exact = Names.Same(fullName, name)
+            if same and exact then
+                if not exactRank or rankIndex > exactRank then exactRank, exactOnline = rankIndex, online end
+            elseif same then
+                if not looseRank or rankIndex > looseRank then looseRank, looseOnline = rankIndex, online end
+            end
         end
     end
-    return nil
+    if exactRank then return exactRank, exactOnline end
+    return looseRank, looseOnline
 end
 
 local function IsTrusted(name)
@@ -119,7 +109,7 @@ local function IsGuildMember(name)
 end
 
 local function MyFullName()
-    return FullName(UnitName("player"))
+    return Names.Me()
 end
 
 local function IAmTrusted()
@@ -408,21 +398,31 @@ end
 local pendingAnswers = {} -- [Anfragender] = true, solange noch niemand geantwortet hat
 local lastAnswered = {}   -- [Anfragender] = Zeitpunkt der letzten eigenen Antwort
 
+-- Schluessel fuer die beiden Tabellen: derselbe Anfragende kann bei
+-- verschiedenen Mitgliedern mit oder ohne Realm ankommen.
+local function AnswerKey(name)
+    local base, realm = Names.Split(name)
+    base = base or tostring(name)
+    return realm and (base .. "-" .. realm:lower()) or base
+end
+
 local function OnAltRequest(sender)
     if not DB.GetSetting("syncEnabled") then return end
     if not IsGuildMember(sender) or not IAmTrusted() then return end
 
     local now = time()
-    if lastAnswered[sender] and now - lastAnswered[sender] < 300 then return end
+    local last = lastAnswered[AnswerKey(sender)]
+    if last and now - last < 300 then return end
     if SerializeAlts() == "" then return end
 
     local myRank = RosterEntry(MyFullName()) or 0
     local delay = 1 + myRank * 2 + math.random(0, 20) / 10
-    pendingAnswers[sender] = true
+    local key = AnswerKey(sender)
+    pendingAnswers[key] = true
     C_Timer.After(delay, function()
-        if not pendingAnswers[sender] then return end -- jemand war schneller
-        pendingAnswers[sender] = nil
-        lastAnswered[sender] = time()
+        if not pendingAnswers[key] then return end -- jemand war schneller
+        pendingAnswers[key] = nil
+        lastAnswered[key] = time()
         SendMsg("ALTANS:" .. sender, "GUILD")
         SendChunked("ALTSYNC", SerializeAlts(), "WHISPER", sender)
     end)
@@ -431,7 +431,7 @@ end
 local function OnAltAnswered(sender, message)
     local requester = message:match("^ALTANS:(.+)$")
     if requester and IsTrusted(sender) then
-        pendingAnswers[requester] = nil
+        pendingAnswers[AnswerKey(requester)] = nil
     end
 end
 

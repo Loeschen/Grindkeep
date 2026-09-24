@@ -191,15 +191,14 @@ local function ReadRoster()
         for i = 1, num do
             local fullName, _, _, _, _, _, _, _, _, _, classFileName = GetGuildRosterInfo(i)
             if fullName then
-                local shortName = fullName:match("^([^-]+)") or fullName
-                rosterClassByName[shortName] = classFileName
+                rosterClassByName[_G.GrindkeepNames.Base(fullName)] = classFileName
             end
         end
     end)
 end
 
 local function ClassColor(name)
-    local class = rosterClassByName[name]
+    local class = rosterClassByName[name] or rosterClassByName[_G.GrindkeepNames.Base(name)]
     local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
     if c then return c.r, c.g, c.b end
     return 0.8, 0.8, 0.8

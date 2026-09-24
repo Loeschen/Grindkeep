@@ -46,7 +46,7 @@ end
 
 local function ItemName(e)
     local n = e.itemName or (e.itemLink and e.itemLink:match("|h%[(.-)%]|h"))
-    if not n and e.itemID then n = "Item " .. e.itemID end
+    if not n and e.itemID then n = string.format(L["ITEM_FALLBACK"], tostring(e.itemID)) end
     return Plain(n or "?")
 end
 

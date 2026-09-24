@@ -539,14 +539,14 @@ local function FireQuery(target)
     local numTabs = (GetNumGuildBankTabs and GetNumGuildBankTabs()) or 0
     if target.kind == "item" then
         if QueryGuildBankTabInfo then QueryGuildBankTabInfo(target.tab) end
-        QueryGuildBankLog(target.tab)
+        QueryGuildBankLog(target.tab) -- Existenz geprueft in StartScan
     else
         -- Das Geld-Log hat einen festen Index hinter dem letzten MOEGLICHEN
         -- Fach (so fragt es auch Blizzards eigene Gildenbank ab), nicht
         -- hinter dem letzten gekauften. Die Konstante stammt aus dem
         -- Gildenbank-Modul, das bei geoeffneter Bank geladen ist.
         local maxTabs = MAX_GUILDBANK_TABS or math.max(numTabs, 8)
-        QueryGuildBankLog(maxTabs + 1)
+        QueryGuildBankLog(maxTabs + 1) -- Existenz geprueft in StartScan
     end
 end
 
@@ -597,7 +597,7 @@ local function StartScan()
         Print(L["CORE_SCAN_RUNNING"])
         return
     end
-    if not GetGuildBankTransaction or not GetGuildBankMoneyTransaction then
+    if not GetGuildBankTransaction or not GetGuildBankMoneyTransaction or not QueryGuildBankLog then
         Print(L["CORE_API_MISSING"])
         return
     end
@@ -1063,7 +1063,7 @@ end
 -- Bestand / Mindestbestaende / Fehlliste (Chat-Ausgabe)
 -- ============================================================
 local function FormatStockLine(entry)
-    local label = entry.itemLink or entry.itemName or ("Item " .. tostring(entry.itemID))
+    local label = entry.itemLink or entry.itemName or string.format(L["ITEM_FALLBACK"], tostring(entry.itemID))
     return label
 end
 
@@ -1214,7 +1214,7 @@ local function PrintCheck()
         end
 
         CheckLine(string.format(L["CORE_CHECK_TAB_LABEL"], t),
-            string.format("%s | %s: %s | %s: %s",
+            string.format("%s - %s: %s - %s: %s",
                 name or "?",
                 L["CORE_CHECK_VIEWABLE"], tostring(isViewable),
                 L["CORE_CHECK_FIRST_LOG"], firstEntry))
@@ -1264,11 +1264,13 @@ local function PrintHelp()
     Print(L["CORE_HELP_STYLE"])
     Print(L["CORE_HELP_HELPWINDOW"])
     Print(L["CORE_HELP_EXPORT"])
+    Print(L["CORE_HELP_BOTEXPORT"])
     Print(L["CORE_HELP_IMPORT"])
     Print(L["CORE_HELP_RESET"])
 end
 
 SLASH_GRINDKEEP1 = "/gkeep"
+SLASH_GRINDKEEP2 = "/grindkeep"
 SlashCmdList["GRINDKEEP"] = function(msg)
     local args = {}
     for w in msg:gmatch("%S+") do table.insert(args, w) end
@@ -1376,6 +1378,10 @@ SlashCmdList["GRINDKEEP"] = function(msg)
         else
             Print(L["LOOT_MODULE_NOT_LOADED"])
         end
+    elseif cmd == "bot" or (cmd == "export" and args[2] and args[2]:lower() == "bot") then
+        -- Gildenbank-Bestand fuer den Discord-Bot (BotExport.lua). Muss vor
+        -- "export" stehen: das ist der Datenaustausch zwischen Nutzern.
+        if _G.GrindkeepBotExport then _G.GrindkeepBotExport.Show() end
     elseif cmd == "export" then
         if _G.GrindkeepComm then _G.GrindkeepComm.Export() end
     elseif cmd == "import" then

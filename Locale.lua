@@ -71,23 +71,23 @@ local STRINGS = {
     },
     CORE_LIST_HEADER = { enUS = "Player list (sorted by %s):", deDE = "Spielerliste (sortiert nach %s):" },
     CORE_LIST_ROW = {
-        enUS = "%s: Net %s | Items in %d / out %d",
-        deDE = "%s: Netto %s | Items ein %d / aus %d",
+        enUS = "%s: Net %s / Items in %d / out %d",
+        deDE = "%s: Netto %s / Items ein %d / aus %d",
     },
     CORE_DETAILS_NONE = { enUS = "No data for %s.", deDE = "Keine Daten für %s." },
     CORE_IS_TWINK_OF = { enUS = "%s is an alt of %s.", deDE = "%s ist Twink von %s." },
     CORE_HAS_TWINKS = { enUS = "%s has the following alts: %s", deDE = "%s hat folgende Twinks: %s" },
     CORE_OWN_BALANCE = {
-        enUS = "Own balance: Gold in %s | out %s | Items in %d / out %d",
-        deDE = "Eigene Bilanz: Gold ein %s | aus %s | Items ein %d / aus %d",
+        enUS = "Own balance: Gold in %s / out %s / Items in %d / out %d",
+        deDE = "Eigene Bilanz: Gold ein %s / aus %s / Items ein %d / aus %d",
     },
     CORE_AGGREGATED = {
-        enUS = "Aggregated (main+alts): Gold in %s | out %s | Net %s",
-        deDE = "Aggregiert (Main+Twinks): Gold ein %s | aus %s | Netto %s",
+        enUS = "Aggregated (main+alts): Gold in %s / out %s / Net %s",
+        deDE = "Aggregiert (Main+Twinks): Gold ein %s / aus %s / Netto %s",
     },
     CORE_TX_NEED_NAME = {
-        enUS = "Please provide a name: /gkeep tx <Name> [gold|item]",
-        deDE = "Bitte Namen angeben: /gkeep tx <Name> [gold|item]",
+        enUS = "Please provide a name: /gkeep tx <Name> [gold/item]",
+        deDE = "Bitte Namen angeben: /gkeep tx <Name> [gold/item]",
     },
     CORE_TX_NONE = { enUS = "No transactions for %s (filter: %s).", deDE = "Keine Transaktionen für %s (Filter: %s)." },
     CORE_FILTER_ALL = { enUS = "all", deDE = "alle" },
@@ -110,16 +110,16 @@ local STRINGS = {
         deDE = "/gkeep scan               - Scan manuell anstoßen (Gildenbank muss geöffnet sein)",
     },
     CORE_HELP_LIST = {
-        enUS = "/gkeep list [net|deposits|activity|name] - player list",
-        deDE = "/gkeep list [net|deposits|activity|name] - Spielerliste",
+        enUS = "/gkeep list [net/deposits/activity/name] - player list",
+        deDE = "/gkeep list [net/deposits/activity/name] - Spielerliste",
     },
     CORE_HELP_PLAYER = {
         enUS = "/gkeep player <Name>      - details for a person (incl. alts)",
         deDE = "/gkeep player <Name>      - Details zu einer Person (inkl. Twinks)",
     },
     CORE_HELP_TX = {
-        enUS = "/gkeep tx <Name> [gold|item] - recent transactions for a person",
-        deDE = "/gkeep tx <Name> [gold|item] - letzte Transaktionen einer Person",
+        enUS = "/gkeep tx <Name> [gold/item] - recent transactions for a person",
+        deDE = "/gkeep tx <Name> [gold/item] - letzte Transaktionen einer Person",
     },
     CORE_HELP_ALT = {
         enUS = "/gkeep alt <alt> = <main> - assign an alt (the \"=\" also allows names with spaces; shared with the guild if your rank allows)",
@@ -166,8 +166,8 @@ local STRINGS = {
     -- Bestand / Mindestbestaende / Selbstdiagnose (seit v0.8)
     -- ============================================================
     CORE_HELP_STOCK = {
-        enUS = "/gkeep stock [n|scan]     - current bank contents (top n), 'scan' re-reads them",
-        deDE = "/gkeep stock [n|scan]     - aktueller Bankbestand (die größten n), 'scan' liest ihn neu ein",
+        enUS = "/gkeep stock [n/scan]     - current bank contents (top n), 'scan' re-reads them",
+        deDE = "/gkeep stock [n/scan]     - aktueller Bankbestand (die größten n), 'scan' liest ihn neu ein",
     },
     CORE_HELP_MIN = {
         enUS = "/gkeep min <item> <count> - set a minimum stock (shift-click the item into chat), 0 removes it, 'list' shows all",
@@ -202,8 +202,8 @@ local STRINGS = {
     CORE_STOCK_MORE = { enUS = "  ... and %d more (raise the limit: /gkeep stock 50)", deDE = "  ... und %d weitere (mehr anzeigen: /gkeep stock 50)" },
 
     CORE_MIN_USAGE = {
-        enUS = "Usage: /gkeep min <item link or item ID> <count> (0 removes it) | /gkeep min list",
-        deDE = "Verwendung: /gkeep min <Itemlink oder Item-ID> <Menge> (0 entfernt ihn) | /gkeep min list",
+        enUS = "Usage: /gkeep min <item link or item ID> <count> (0 removes it) / /gkeep min list",
+        deDE = "Verwendung: /gkeep min <Itemlink oder Item-ID> <Menge> (0 entfernt ihn) / /gkeep min list",
     },
     CORE_MIN_SET = { enUS = "Minimum stock for %s set to %d.", deDE = "Mindestbestand für %s auf %d gesetzt." },
     CORE_MIN_REMOVED = { enUS = "Minimum stock for %s removed.", deDE = "Mindestbestand für %s entfernt." },
@@ -304,8 +304,8 @@ local STRINGS = {
     },
     HELP_H_COMMANDS = { enUS = "Commands", deDE = "Befehle" },
     HELP_T_COMMANDS = {
-        enUS = "/gkeep - open the window\n/gkeep stock - bank contents\n/gkeep missing - what is missing\n/gkeep min [item] <count> - set a minimum\n/gkeep list - all players\n/gkeep player <name> - details\n/gkeep style ... - font, size, opacity\n/gkeep check - self-check when something looks wrong\n/gkeep options - settings\n\nA full list is printed by /gkeep followed by an unknown word, e.g. /gkeep ?",
-        deDE = "/gkeep - Fenster öffnen\n/gkeep stock - Bankbestand\n/gkeep missing - was fehlt\n/gkeep min [Item] <Menge> - Mindestbestand setzen\n/gkeep list - alle Spieler\n/gkeep player <Name> - Details\n/gkeep style ... - Schriftart, Größe, Deckkraft\n/gkeep check - Selbstdiagnose, wenn etwas nicht stimmt\n/gkeep options - Einstellungen\n\nDie vollständige Liste erscheint mit /gkeep und einem unbekannten Wort, z.B. /gkeep ?",
+        enUS = "/gkeep - open the window\n/gkeep stock - bank contents\n/gkeep missing - what is missing\n/gkeep min [item] <count> - set a minimum\n/gkeep list - all players\n/gkeep player <name> - details\n/gkeep style ... - font, size, opacity\n/gkeep check - self-check when something looks wrong\n/gkeep options - settings\n/gkeep bot - guild bank contents for the Discord bot\n\nA full list is printed by /gkeep followed by an unknown word, e.g. /gkeep ?",
+        deDE = "/gkeep - Fenster öffnen\n/gkeep stock - Bankbestand\n/gkeep missing - was fehlt\n/gkeep min [Item] <Menge> - Mindestbestand setzen\n/gkeep list - alle Spieler\n/gkeep player <Name> - Details\n/gkeep style ... - Schriftart, Größe, Deckkraft\n/gkeep check - Selbstdiagnose, wenn etwas nicht stimmt\n/gkeep options - Einstellungen\n/gkeep bot - Gildenbank-Bestand für den Discord-Bot\n\nDie vollständige Liste erscheint mit /gkeep und einem unbekannten Wort, z.B. /gkeep ?",
     },
 
     -- ============================================================
@@ -321,8 +321,8 @@ local STRINGS = {
     STYLE_SIZE_SET = { enUS = "Font size set to %d%%.", deDE = "Schriftgröße auf %d%% gesetzt." },
     STYLE_OPACITY_SET = { enUS = "Window opacity set to %d%%.", deDE = "Fenster-Deckkraft auf %d%% gesetzt." },
     STYLE_USAGE = {
-        enUS = "Usage: /gkeep style font <name> | /gkeep style size <70-160> | /gkeep style opacity <30-100>",
-        deDE = "Verwendung: /gkeep style font <Name> | /gkeep style size <70-160> | /gkeep style opacity <30-100>",
+        enUS = "Usage: /gkeep style font <name> / /gkeep style size <70-160> / /gkeep style opacity <30-100>",
+        deDE = "Verwendung: /gkeep style font <Name> / /gkeep style size <70-160> / /gkeep style opacity <30-100>",
     },
     CORE_HELP_HELPWINDOW = {
         enUS = "/gkeep help               - what this addon does, explained in game",
@@ -541,8 +541,8 @@ local STRINGS = {
         deDE = "Noch kein Loot erfasst (Gruppen-/Raid-Loot löst die Erfassung automatisch aus).",
     },
     LOOT_HELP = {
-        enUS = "Commands: /gkeep loot check <Item> | /gkeep loot recent [n] | /gkeep loot ui | /gkeep loot stats | /gkeep loot export | /gkeep loot import",
-        deDE = "Befehle: /gkeep loot check <Item> | /gkeep loot recent [n] | /gkeep loot ui | /gkeep loot stats | /gkeep loot export | /gkeep loot import",
+        enUS = "Commands: /gkeep loot check <Item> / /gkeep loot recent [n] / /gkeep loot ui / /gkeep loot stats / /gkeep loot export / /gkeep loot import",
+        deDE = "Befehle: /gkeep loot check <Item> / /gkeep loot recent [n] / /gkeep loot ui / /gkeep loot stats / /gkeep loot export / /gkeep loot import",
     },
     LOOT_WINDOW_TITLE = { enUS = "Grindkeep - Loot", deDE = "Grindkeep - Loot" },
     LOOT_SEARCH_HINT = {
@@ -835,13 +835,13 @@ local STRINGS = {
     MENU_EXPORT = { enUS = "Export as text ...", deDE = "Als Text exportieren ..." },
     EXPORT_BUTTON = { enUS = "Export", deDE = "Exportieren" },
     CORE_HELP_STORAGE = {
-        enUS = "/gkeep lager [on|off|remove <name>] - storage alts: record this character's bags and bank",
-        deDE = "/gkeep lager [an|aus|entfernen <Name>] - Lager-Twinks: Taschen und Bank dieses Charakters erfassen",
+        enUS = "/gkeep lager [on/off/remove <name>] - storage alts: record this character's bags and bank",
+        deDE = "/gkeep lager [an/aus/entfernen <Name>] - Lager-Twinks: Taschen und Bank dieses Charakters erfassen",
     },
     CORE_HELP_COLLECT = { enUS = "/gkeep sammel             - open the collect list", deDE = "/gkeep sammel             - Sammelliste öffnen" },
     CORE_HELP_REPORT = {
-        enUS = "/gkeep bericht [sammel|bestand|vorgaenge|bilanz] - export as text (Discord, spreadsheet)",
-        deDE = "/gkeep bericht [sammel|bestand|vorgaenge|bilanz] - als Text exportieren (Discord, Tabelle)",
+        enUS = "/gkeep report [collect/stock/tx/balances] - export as text (Discord, spreadsheet)",
+        deDE = "/gkeep bericht [sammel/bestand/vorgänge/bilanz] - als Text exportieren (Discord, Tabelle)",
     },
     STORAGE_ON = { enUS = "%s is now a storage alt. Bags are recorded now, the bank the next time you open it.", deDE = "%s ist jetzt ein Lager-Twink. Die Taschen sind erfasst, die Bank beim nächsten Öffnen." },
     STORAGE_OFF = { enUS = "%s is no longer counted as a storage alt.", deDE = "%s zählt nicht mehr als Lager-Twink." },
@@ -851,7 +851,7 @@ local STRINGS = {
     STORAGE_LIST_HEADER = { enUS = "Storage alts:", deDE = "Lager-Twinks:" },
     STORAGE_LIST_LINE = { enUS = "  %s - %d kinds of items, bank read: %s", deDE = "  %s - %d Gegenstandsarten, Bank gelesen: %s" },
     STORAGE_BANK_NEVER = { enUS = "bank not read yet", deDE = "Bank noch nicht gelesen" },
-    STORAGE_HELP = { enUS = "/gkeep lager on | off | remove <name>", deDE = "/gkeep lager an | aus | entfernen <Name>" },
+    STORAGE_HELP = { enUS = "/gkeep lager on / off / remove <name>", deDE = "/gkeep lager an / aus / entfernen <Name>" },
     STOCK_SOURCE_LABEL = { enUS = "Show:", deDE = "Anzeigen:" },
     STOCK_SOURCE_ALL = { enUS = "All", deDE = "Alles" },
     STOCK_SOURCE_BANK = { enUS = "Guild bank", deDE = "Gildenbank" },
@@ -975,6 +975,26 @@ local STRINGS = {
     HELP_T_STORAGE = {
         enUS = "No guild bank yet, or the bank is full? Log in your bank alt, open the Stock tab and tick \"This character is a storage alt\". Grindkeep then records its bags and - whenever you open it - its bank. Stock, minimum amounts and the collect list count guild bank and storage alts together.\n\nCollect list: what the guild is collecting right now, with target amount and note. With an item, the progress is counted automatically.\n\nExport (gear menu or the buttons on the pages): collect list, stock, transactions or balances as ready-made Discord text or as a spreadsheet.",
         deDE = "Noch keine Gildenbank, oder die Bank ist voll? Bank-Twink einloggen, im Reiter Bestand den Haken \"Dieser Charakter ist ein Lager-Twink\" setzen. Grindkeep erfasst dann seine Taschen und - sobald du sie öffnest - seine Bank. Bestand, Mindestmengen und Sammelliste zählen Gildenbank und Lager-Twinks zusammen.\n\nSammelliste: was die Gilde gerade sammelt, mit Zielmenge und Notiz. Mit Gegenstand zählt Grindkeep den Stand selbst.\n\nExport (Zahnrad-Menü oder die Knöpfe auf den Seiten): Sammelliste, Bestand, Vorgänge oder Bilanzen als fertiger Discord-Text oder als Tabelle.",
+    },
+    -- ============================================================
+    -- BotExport.lua / allgemein
+    -- ============================================================
+    ITEM_FALLBACK = { enUS = "Item %s", deDE = "Gegenstand %s" },
+    BOTEXPORT_TITLE = {
+        enUS = "Guild bank export for the Discord bot - copy with Ctrl+C",
+        deDE = "Gildenbank-Export für den Discord-Bot - mit Strg+C kopieren",
+    },
+    BOTEXPORT_NO_DATA = {
+        enUS = "No guild bank contents recorded yet. Open the guild bank once (or /gkeep stock scan), then try again.",
+        deDE = "Noch kein Gildenbank-Bestand erfasst. Einmal die Gildenbank öffnen (oder /gkeep stock scan), dann erneut versuchen.",
+    },
+    BOTEXPORT_DONE = {
+        enUS = "Bot export: %d line(s), guild bank contents as of %s.",
+        deDE = "Bot-Export: %d Zeile(n), Gildenbank-Bestand vom %s.",
+    },
+    CORE_HELP_BOTEXPORT = {
+        enUS = "/gkeep bot                - guild bank contents as text for the Discord bot (also /grindkeep bot)",
+        deDE = "/gkeep bot                - Gildenbank-Bestand als Text für den Discord-Bot (auch /grindkeep bot)",
     },
 }
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unveröffentlicht
+
+- Neu: `/gkeep bot` (auch `/grindkeep bot`, `/gkeep export bot`) – Gildenbank-Bestand als Text für den Grindhub-Discord-Bot, versioniert, mit Zeitstempel und Prüfsumme. Format: `docs/export-format.md`.
+- Neu: `/grindkeep` als zweiter Befehlsname.
+- Namen: Ein Anhang „-Xyz“ gilt nur noch als Realm, wenn es der eigene oder ein verbundener Realm ist. Behebt nicht erkannte Offiziere (Forever-Roster ohne Realm), falsch zusammengelegte Beute bei Bindestrich-Nachnamen und fehlende Klassenfarben.
+- Texte: kein „|“ mehr in Chat- und Hilfetexten (WoW-Steuerzeichen, verschluckte Teile z. B. bei „an|aus“).
+- „Item 123“ als Ersatzname ist jetzt übersetzt („Gegenstand 123“).
+- Tests mit nachgebauter WoW-API (`sh tests/run.sh`), `.pkgmeta` schließt `tests/` und `docs/` vom Paket aus.
+
 ## 1.3.0 (Beta)
 
 - Neues Hauptfenster mit Reitern: Übersicht, Mitglieder, Suche, Bestand, Sammelliste, Beute.
