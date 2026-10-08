@@ -146,7 +146,8 @@ local LOOT_DEDUP_SECONDS = 180
 
 local function BaseName(name)
     if type(name) ~= "string" then return "" end
-    return name:match("^([^-]+)") or name
+    -- Vorname ohne Realm und ohne Nachnamen (WoW Forever, seit 1.3.1)
+    return DB.FirstWord(name:match("^([^-]+)") or name)
 end
 
 local function SameItem(a, b)

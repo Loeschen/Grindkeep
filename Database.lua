@@ -96,6 +96,44 @@ GrindkeepDB = GrindkeepDB or {}
 local Database = {}
 _G.GrindkeepDatabase = Database
 
+-- ============================================================
+-- Namen (seit 1.3.1)
+-- ============================================================
+-- WoW Forever: Charaktere haben Vor- UND Nachnamen ("Krutolo Zitterhand").
+-- Addon-Nachrichten, Fluestern und teils auch Listen nennen aber nur den
+-- Vornamen mit Realm ("Krutolo-Realm"). Damit Gildenliste, Bank-Log,
+-- Twink-Zuordnung und Abgleich denselben Charakter erkennen, vergleicht
+-- Grindkeep immer ueber einen einheitlichen Schluessel: Vorname, und nur
+-- bei einem fremden Realm "-Realm" dahinter. Der Nachname ist reine Anzeige.
+-- Auf Retail (Namen ohne Leerzeichen) aendert sich dadurch nichts.
+local function FirstWord(n)
+    n = (n or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    return (n:match("^(%S+)") or n)
+end
+
+local function OwnRealm()
+    local r = GetNormalizedRealmName and GetNormalizedRealmName() or nil
+    if type(r) ~= "string" or r == "" then return nil end
+    return (r:gsub("[%s%-]", ""))
+end
+
+function Database.NameKey(name)
+    if type(name) ~= "string" then return name end
+    name = name:gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" or name == "?" then return name end
+    local base, realm = name:match("^(.-)%-([^%-]+)$")
+    if not base or base == "" then base, realm = name, nil end
+    base = FirstWord(base)
+    if realm then
+        realm = realm:gsub("%s", "")
+        local own = OwnRealm()
+        if realm ~= "" and realm ~= own then return base .. "-" .. realm end
+    end
+    return base
+end
+local NameKey = Database.NameKey
+Database.FirstWord = FirstWord
+
 -- Einheitliche Uhr fuer alle gespeicherten Zeitpunkte: die Serverzeit.
 -- Die Uhr des eigenen PCs kann falsch gehen oder springen (Zeitumstellung,
 -- falsch gestellte Uhr) - dann wuerden Vorgaenge beim Abgleich nicht mehr
@@ -267,6 +305,7 @@ end
 -- Zuordnungen, die per Gilden-Abgleich hereinkommen (Comm.lua ruft
 -- ebenfalls SetAlt auf).
 local function ResolveMain(alts, name)
+    name = NameKey(name)
     local seen = {}
     local current = name
     while alts[current] and not seen[current] do
@@ -279,6 +318,7 @@ end
 function Database.SetAlt(twinkName, mainName)
     local g = GetGuildData()
     if not g or type(twinkName) ~= "string" or type(mainName) ~= "string" then return false end
+    twinkName, mainName = NameKey(twinkName), NameKey(mainName)
     if twinkName == "" or mainName == "" or twinkName == mainName then return false end
 
     local root = ResolveMain(g.alts, mainName)
@@ -303,6 +343,7 @@ end
 
 function Database.ClearAlt(twinkName)
     local g = GetGuildData()
+    twinkName = NameKey(twinkName)
     if not g or not twinkName or not g.alts[twinkName] then return false end
     g.alts[twinkName] = nil
     return true
@@ -318,6 +359,15 @@ end
 -- Schleifen noch moeglich waren: danach zeigt jeder Twink direkt auf
 -- seinen Hauptcharakter.
 local function NormalizeAlts(g)
+    -- seit 1.3.1: alle Namen auf den einheitlichen Schluessel bringen
+    local keyed = {}
+    for alt, main in pairs(g.alts) do
+        local a, m = NameKey(alt), NameKey(main)
+        if type(a) == "string" and type(m) == "string" and a ~= "" and m ~= "" and a ~= m then
+            keyed[a] = m
+        end
+    end
+    g.alts = keyed
     local fixed = {}
     for alt in pairs(g.alts) do
         local root = ResolveMain(g.alts, alt)
@@ -349,7 +399,7 @@ local function NewSummary()
 end
 
 local function ApplyToSummary(summaryMap, record)
-    local name = record.player or "?"
+    local name = NameKey(record.player or "?")
     local summary = summaryMap[name]
     if not summary then
         summary = NewSummary()
@@ -418,7 +468,8 @@ MergeGuildData = function(dst, src)
         dst.pendingItems = {}
     end
     for alt, main in pairs(src.alts or {}) do
-        if dst.alts[alt] == nil then dst.alts[alt] = main end
+        local a = NameKey(alt)
+        if dst.alts[a] == nil then dst.alts[a] = NameKey(main) end
     end
     NormalizeAlts(dst)
     for itemID, min in pairs(src.minimums or {}) do
@@ -488,7 +539,7 @@ function Database.EnrichItem(itemID, itemName, itemLink, itemQuality, itemType)
             record.itemType = itemType
 
             if record.action == "deposit" or record.action == "withdraw" then
-                local summary = g.playerSummary[record.player]
+                local summary = g.playerSummary[NameKey(record.player)]
                 if summary then
                     local unknown = summary.byCategory[Database.UNKNOWN_CATEGORY]
                     if unknown then
@@ -602,6 +653,7 @@ end
 function Database.GetPlayerDetails(playerName, sinceTs)
     local g = GetGuildData()
     if not g or not playerName then return nil end
+    playerName = NameKey(playerName)
     local summaryMap = ComputeSummaries(g, sinceTs)
 
     local twinks = {}
@@ -695,7 +747,7 @@ function Database.SearchTransactions(filter)
             if action ~= filter.action then ok = false end
         end
         if ok and filter.sinceTs and (tx.ts or 0) < filter.sinceTs then ok = false end
-        if ok and players and not players[tx.player or "?"] then ok = false end
+        if ok and players and not players[NameKey(tx.player or "?")] then ok = false end
         if ok and filter.itemID and tx.itemID ~= filter.itemID then ok = false end
         if ok and text then
             local hay = ((tx.player or "") .. "\1" .. (tx.itemName or "") .. "\1" .. (tx.tabName or "")):lower()
@@ -718,6 +770,7 @@ end
 function Database.GetPlayerTransactions(playerName, categoryFilter, timeRange)
     local g = GetGuildData()
     if not g or not playerName then return {} end
+    playerName = NameKey(playerName)
 
     local fromTs, toTs
     if type(timeRange) == "number" then
@@ -729,7 +782,7 @@ function Database.GetPlayerTransactions(playerName, categoryFilter, timeRange)
 
     local out = {}
     for _, tx in ipairs(g.transactions) do
-        if tx.player == playerName then
+        if NameKey(tx.player) == playerName then
             local matchesCategory =
                 (not categoryFilter or categoryFilter == "all")
                 or (categoryFilter == "gold" and tx.kind == "gold")
@@ -841,7 +894,7 @@ function Database.GetLootPlayerStats(sortBy)
 
     local stats = {}
     for _, entry in ipairs(g.loot) do
-        local name = entry.recipient or "?"
+        local name = NameKey(entry.recipient or "?")
         local s = stats[name]
         if not s then
             s = { name = name, totalCount = 0, entries = 0, lastTs = 0 }
@@ -1446,7 +1499,38 @@ end
 -- Start: wird von Core.lua beim ADDON_LOADED dieses Addons aufgerufen,
 -- also sobald die gespeicherten Daten wirklich geladen sind.
 -- ============================================================
-local SCHEMA_VERSION = 3 -- 3: Vorgangszaehler je Spieler (txCount)
+local SCHEMA_VERSION = 5 -- 3: Vorgangszaehler je Spieler (txCount); 4: einheitliche Namen (Vorname, Forever); 5: Geister-Eintraege entfernen
+
+-- Geister-Eintraege aus leeren Log-Faechern (Platzhalter des Servers, siehe
+-- IsUsableEntry in Core.lua): kein Spieler UND kein echter Inhalt, oder eine
+-- Zeit vor dem Jahr 2000. Solche Eintraege sind nie echte Vorgaenge.
+local function IsGhostRecord(rec)
+    if type(rec) ~= "table" then return true end
+    if (tonumber(rec.ts) or 0) < 946684800 then return true end
+    local p = rec.player
+    local noPlayer = (p == nil or p == "" or p == "?" or p == "Unbekannt")
+    if not noPlayer then return false end
+    if rec.kind == "gold" then return (tonumber(rec.amount) or 0) <= 0 end
+    return (tonumber(rec.itemID) or 0) <= 0 or (tonumber(rec.count) or 0) <= 0
+end
+Database.IsGhostRecord = IsGhostRecord
+
+-- Entfernt Geister-Eintraege einer Gilde. Rueckgabe: Anzahl entfernt.
+function Database.PurgeGhostRecords(g)
+    if not g or type(g.transactions) ~= "table" then return 0 end
+    local kept, removed = {}, 0
+    for _, rec in ipairs(g.transactions) do
+        if IsGhostRecord(rec) then removed = removed + 1 else table.insert(kept, rec) end
+    end
+    if removed > 0 then
+        g.transactions = kept
+        -- Vergleichsstand der Logs verwerfen: er enthielt die Platzhalter.
+        -- Der naechste Scan gleicht dann ueber Inhalt und Zeit ab (wie beim
+        -- ersten Scan) und legt nichts doppelt an.
+        g.logBaseline = {}
+    end
+    return removed
+end
 
 function Database.OnLoad()
     GrindkeepDB = GrindkeepDB or {}
@@ -1472,6 +1556,7 @@ function Database.OnLoad()
         for key in pairs(GrindkeepDB.guilds) do
             local g = EnsureGuildData(key)
             NormalizeAlts(g)
+            Database.PurgeGhostRecords(g)
             RebuildSummaries(g)
             g.scanState = nil
         end

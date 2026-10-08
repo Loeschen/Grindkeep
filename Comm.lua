@@ -57,24 +57,33 @@ local function MyRealm()
     return realm
 end
 
--- Vollstaendiger Name "Name-Realm". Namen ohne Realm gehoeren zum eigenen
+-- Vollstaendiger Name "Vorname-Realm". Namen ohne Realm gehoeren zum eigenen
 -- Realm. Liefert ein Client gar keinen Realm, bleibt der Name, wie er ist.
+-- WoW Forever (seit 1.3.1): Die Gildenliste nennt "Vorname Nachname-Realm",
+-- Addon-Absender aber nur "Vorname-Realm". Der Nachname wird deshalb immer
+-- weggelassen, sonst wuerde z.B. der Rang eines Offiziers nicht gefunden.
 local function FullName(name)
-    if type(name) ~= "string" or name == "" then return nil end
-    if name:find("-", 1, true) then return name end
-    local realm = MyRealm()
-    return realm and (name .. "-" .. realm) or name
+    if type(name) ~= "string" then return nil end
+    name = name:gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then return nil end
+    local base, realm = name:match("^(.-)%-([^%-]+)$")
+    if not base or base == "" then base, realm = name, nil end
+    base = DB.FirstWord(base)
+    if base == "" then return nil end
+    if realm and realm ~= "" then return base .. "-" .. realm:gsub("%s", "") end
+    realm = MyRealm()
+    return realm and (base .. "-" .. realm:gsub("%s", "")) or base
 end
 
 local function ShortName(name)
     if type(name) ~= "string" then return "?" end
-    return name:match("^([^-]+)") or name
+    return DB.FirstWord(name:match("^([^-]+)") or name)
 end
 
 -- Sind a und b derselbe Charakter? Mit Realm auf beiden Seiten wird exakt
 -- verglichen (sonst koennte sich ein Namensvetter von einem anderen Realm
 -- als Offizier ausgeben). Liefert ein Client auf einer Seite keinen Realm
--- (und kennt auch den eigenen nicht), bleibt nur der Name.
+-- (und kennt auch den eigenen nicht), bleibt nur der Vorname.
 local function SameCharacter(a, b)
     local fa, fb = FullName(a), FullName(b)
     if not fa or not fb then return false end
@@ -743,8 +752,11 @@ end
 -- ============================================================
 -- Event-Handling
 -- ============================================================
+local lastSender = nil -- fuer /gkeep namen: wie der letzte Absender wirklich ankam
+
 local function HandleAddonMessage(message, channel, sender)
     if SameCharacter(sender, MyFullName()) then return end -- eigenes Echo
+    lastSender = sender
 
     if message == "ALTREQ" then
         if channel == "GUILD" then OnAltRequest(sender) end
@@ -811,6 +823,22 @@ _G.GrindkeepComm = {
     ImportLoot = ImportLoot,
     ShowLootImportDialog = ShowLootImportDialog,
     ShowTextWindow = ShowTextWindow,
+    -- Diagnose fuer /gkeep namen (seit 1.3.1)
+    NameInfo = function()
+        local myRank = RosterEntry(MyFullName())
+        return {
+            unitName = UnitName and UnitName("player") or nil,
+            fullName = MyFullName(),
+            realm = MyRealm(),
+            rankFound = myRank ~= nil,
+            rank = myRank,
+            trusted = IAmTrusted(),
+            lastSender = lastSender,
+            lastSenderFull = lastSender and FullName(lastSender) or nil,
+        }
+    end,
+    _FullName = FullName,
+    _SameCharacter = SameCharacter,
     -- fuer die Tests
     _Base64Encode = Base64Encode,
     _Base64Decode = Base64Decode,

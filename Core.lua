@@ -112,9 +112,16 @@ end
 -- ohne Item ist also nie ein echter Vorgang, sondern Muell - der wird
 -- hier verworfen, statt ihn in die Datenbank zu schreiben.
 -- ============================================================
-local function IsUsableEntry(name, itemLink)
+-- Nachtrag 1.3.1 (Live-Fund Retail, 30.09.2026): Die Platzhalter haben
+-- teils doch einen "Itemlink" (ohne gueltige Item-ID, Menge 0, rotes
+-- Fragezeichen) und eine Zeitangabe um 1970 ("vor 20725 Tagen"). Deshalb
+-- zaehlt ohne Spielernamen nur ein Eintrag mit echter Item-ID UND Menge,
+-- und Zeitangaben von mehr als 30 Jahren sind nie echt.
+local function IsUsableEntry(name, itemLink, count, years)
+    if tonumber(years) and tonumber(years) > 30 then return false end
     if name and name ~= "" then return true end
-    if itemLink and itemLink ~= "" then return true end
+    local id = ItemIdFromLink(itemLink)
+    if id and id > 0 and (tonumber(count) or 0) > 0 then return true end
     return false
 end
 
@@ -429,7 +436,7 @@ local function ProcessItemTab(tabIndex, confirmed)
 
         -- Platzhalter ohne Spieler und ohne Item gar nicht erst beachten
         -- (siehe IsUsableEntry oben).
-        if IsUsableEntry(name, itemLink) then
+        if IsUsableEntry(name, itemLink, count, year) then
             local itemID = ItemIdFromLink(itemLink)
             local ts = ApproxTimestamp(year, month, day, hour)
             local record = {
@@ -474,7 +481,8 @@ local function ProcessMoneyLog(confirmed)
 
         -- Ein Geld-Eintrag ohne Spielernamen und ohne Betrag ist kein
         -- echter Vorgang.
-        if IsUsableEntry(name, nil) or (amount and amount > 0) then
+        if IsUsableEntry(name, nil, nil, years)
+            or (amount and amount > 0 and not (tonumber(years) and tonumber(years) > 30)) then
             local ts = ApproxTimestamp(years, months, days, hours)
             table.insert(raw, {
                 key = EntryKey("gold", type_, name, nil, nil, amount),
@@ -600,6 +608,15 @@ local function StartScan()
     if not GetGuildBankTransaction or not GetGuildBankMoneyTransaction then
         Print(L["CORE_API_MISSING"])
         return
+    end
+
+    -- Kontostand der Gildenbank merken (fuer den Webseiten-Export, seit 1.4.0)
+    do
+        local g = DB.GetGuildData()
+        local ok, money = pcall(function() return GetGuildBankMoney and GetGuildBankMoney() end)
+        if g and ok and type(money) == "number" then
+            g.bankMoney, g.bankMoneyAt = money, DB.Now()
+        end
     end
 
     local numTabs = (GetNumGuildBankTabs and GetNumGuildBankTabs()) or 0
@@ -1247,6 +1264,8 @@ local function PrintHelp()
     Print(L["CORE_HELP_TX"])
     Print(L["CORE_HELP_ALT"])
     Print(L["CORE_HELP_UNALT"])
+    Print(L["CORE_HELP_NAMES"])
+    Print(L["CORE_HELP_WEB"])
     Print(L["CORE_HELP_SEARCH"])
     Print(L["CORE_HELP_LOOT_CHECK"])
     Print(L["CORE_HELP_LOOT_RECENT"])
@@ -1340,6 +1359,36 @@ SlashCmdList["GRINDKEEP"] = function(msg)
         else
             Print(L["CORE_ALT_USAGE"])
         end
+    elseif cmd == "namen" or cmd == "names" then
+        -- Diagnose (seit 1.3.1): wie sieht Grindkeep Namen in WoW Forever?
+        local info = _G.GrindkeepComm and _G.GrindkeepComm.NameInfo and _G.GrindkeepComm.NameInfo() or {}
+        Print(string.format(L["CORE_NAMES_SELF"], tostring(info.unitName), tostring(info.fullName), tostring(info.realm)))
+        Print(string.format(L["CORE_NAMES_RANK"], info.rankFound and tostring(info.rank) or L["CORE_NAMES_NOT_FOUND"],
+            info.trusted and L["CORE_NAMES_YES"] or L["CORE_NAMES_NO"]))
+        local shown = 0
+        if IsInGuild and IsInGuild() and GetNumGuildMembers then
+            for i = 1, math.min(GetNumGuildMembers() or 0, 3) do
+                local full = GetGuildRosterInfo(i)
+                if full then
+                    Print(string.format(L["CORE_NAMES_ROSTER"], full, tostring(DB.NameKey(full))))
+                    shown = shown + 1
+                end
+            end
+        end
+        local g = DB.GetGuildData()
+        if g and g.transactions then
+            local seen, n = {}, 0
+            for i = #g.transactions, 1, -1 do
+                local p = g.transactions[i].player
+                if p and not seen[p] then
+                    seen[p] = true
+                    Print(string.format(L["CORE_NAMES_BANKLOG"], p, tostring(DB.NameKey(p))))
+                    n = n + 1
+                    if n >= 3 then break end
+                end
+            end
+        end
+        Print(string.format(L["CORE_NAMES_SENDER"], tostring(info.lastSender or "-"), tostring(info.lastSenderFull or "-")))
     elseif cmd == "unalt" then
         if restText ~= "" and DB.ClearAlt(restText) then
             Print(string.format(L["CORE_ALT_CLEARED"], restText))
@@ -1376,6 +1425,9 @@ SlashCmdList["GRINDKEEP"] = function(msg)
         else
             Print(L["LOOT_MODULE_NOT_LOADED"])
         end
+    elseif cmd == "webseite" or cmd == "website" or cmd == "web" then
+        -- Webseiten-Export (seit 1.4.0): /gkeep webseite [alles|<Tage>]
+        if _G.GrindkeepWebExport then _G.GrindkeepWebExport.Show(args[2]) end
     elseif cmd == "export" then
         if _G.GrindkeepComm then _G.GrindkeepComm.Export() end
     elseif cmd == "import" then

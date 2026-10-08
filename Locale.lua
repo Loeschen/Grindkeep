@@ -586,6 +586,52 @@ local STRINGS = {
         enUS = "/gkeep unalt <alt>        - remove an alt assignment",
         deDE = "/gkeep unalt <Twink>      - Twink-Zuordnung aufheben",
     },
+    CORE_HELP_WEB = {
+        enUS = "/gkeep webseite [all|<days>] - code for the guild website (bank, stock, collection list)",
+        deDE = "/gkeep webseite [alles|<Tage>] - Code für die Gilden-Webseite (Bank, Bestand, Sammelliste)",
+    },
+    WEB_TITLE = {
+        enUS = "Grindkeep - code for the guild website",
+        deDE = "Grindkeep - Code für die Gilden-Webseite",
+    },
+    WEB_DONE = {
+        enUS = "Website code ready: %d transactions (%s), %d stock items, %d collection entries. Copy with Ctrl+A, Ctrl+C and paste it on the website under Leadership -> Guild bank.",
+        deDE = "Webseiten-Code fertig: %d Vorgänge (%s), %d Bestandsposten, %d Sammelliste-Einträge. Mit Strg+A, Strg+C kopieren und auf der Webseite unter Leitung -> Gildenbank einfügen.",
+    },
+    WEB_SINCE_LAST = { enUS = "since last export", deDE = "seit dem letzten Export" },
+    WEB_ALL = { enUS = "all", deDE = "alle" },
+    WEB_DAYS = { enUS = "last %d days", deDE = "letzte %d Tage" },
+    WEB_NO_GUILD = {
+        enUS = "No guild data yet - open the guild bank once first.",
+        deDE = "Noch keine Gildendaten - bitte zuerst einmal die Gildenbank öffnen.",
+    },
+    CORE_HELP_NAMES = {
+        enUS = "/gkeep namen              - show how Grindkeep sees names (troubleshooting)",
+        deDE = "/gkeep namen              - zeigt, wie Grindkeep Namen sieht (Fehlersuche)",
+    },
+    CORE_NAMES_SELF = {
+        enUS = "You: \"%s\" -> key \"%s\" (realm: %s)",
+        deDE = "Du: \"%s\" -> Schlüssel \"%s\" (Realm: %s)",
+    },
+    CORE_NAMES_RANK = {
+        enUS = "Your guild rank index: %s, trusted for sync: %s",
+        deDE = "Dein Gildenrang (Index): %s, für den Abgleich vertrauenswürdig: %s",
+    },
+    CORE_NAMES_NOT_FOUND = { enUS = "not found in roster", deDE = "in der Gildenliste nicht gefunden" },
+    CORE_NAMES_YES = { enUS = "yes", deDE = "ja" },
+    CORE_NAMES_NO = { enUS = "no", deDE = "nein" },
+    CORE_NAMES_ROSTER = {
+        enUS = "Guild roster: \"%s\" -> \"%s\"",
+        deDE = "Gildenliste: \"%s\" -> \"%s\"",
+    },
+    CORE_NAMES_BANKLOG = {
+        enUS = "Bank log: \"%s\" -> \"%s\"",
+        deDE = "Bank-Log: \"%s\" -> \"%s\"",
+    },
+    CORE_NAMES_SENDER = {
+        enUS = "Last addon sender: \"%s\" -> \"%s\"",
+        deDE = "Letzter Addon-Absender: \"%s\" -> \"%s\"",
+    },
     CORE_HELP_SEARCH = {
         enUS = "/gkeep search [text]      - search all transactions",
         deDE = "/gkeep search [Text]      - alle Vorgänge durchsuchen",
@@ -833,6 +879,7 @@ local STRINGS = {
     -- Lager-Twinks, Sammelliste, Export (seit 1.3)
     UI_TAB_COLLECT = { enUS = "Collect list", deDE = "Sammelliste" },
     MENU_EXPORT = { enUS = "Export as text ...", deDE = "Als Text exportieren ..." },
+    MENU_EXPORT_WEB = { enUS = "Code for the website ...", deDE = "Für die Webseite exportieren ..." },
     EXPORT_BUTTON = { enUS = "Export", deDE = "Exportieren" },
     CORE_HELP_STORAGE = {
         enUS = "/gkeep lager [on|off|remove <name>] - storage alts: record this character's bags and bank",
@@ -919,6 +966,17 @@ local STRINGS = {
     EXPORT_FORMAT_DISCORD = { enUS = "Discord", deDE = "Discord" },
     EXPORT_FORMAT_CSV = { enUS = "Spreadsheet", deDE = "Tabelle" },
     EXPORT_FORMAT_TEXT = { enUS = "Text", deDE = "Text" },
+    EXPORT_FORMAT_WEB = { enUS = "Website", deDE = "Webseite" },
+    EXPORT_EXPLAIN_WEB = {
+        enUS = "Code for the guild website: Leadership -> Guild bank -> \"+ Paste Grindkeep code\". Always contains transactions, stock and the collection list.",
+        deDE = "Code für die Gilden-Webseite: Leitung -> Gildenbank verwalten -> \"+ Grindkeep-Code einfügen\". Enthält immer Vorgänge, Bestand und Sammelliste.",
+    },
+    EXPORT_WEB_COUNTS = {
+        enUS = "%d transactions (%s), %d stock items, %d collection entries.",
+        deDE = "%d Vorgänge (%s), %d Bestandsposten, %d Sammelliste-Einträge.",
+    },
+    EXPORT_WEB_RANGE_SINCE = { enUS = "Since last export", deDE = "Seit letztem Export" },
+    EXPORT_WEB_RANGE_ALL = { enUS = "All", deDE = "Alles" },
     EXPORT_EXPLAIN_DISCORD = {
         enUS = "Formatted for Discord. Paste it into a channel as it is. Longer texts are split into parts (max. 2000 characters per message).",
         deDE = "Fertig formatiert für Discord. So wie es ist in einen Kanal einfügen. Lange Texte werden in Teile zerlegt (max. 2000 Zeichen je Nachricht).",
