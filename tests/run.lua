@@ -83,6 +83,7 @@ end
 Stub.bank.logs[1] = {
     { type = "deposit", name = "Krutolo Zitterhand", id = 2770, count = 20, hours = 2 },
     { type = "withdraw", name = "Anna Meier-Schulz", id = 2770, count = 5, hours = 1 },
+    { type = "withdraw", name = "Anna Krause", id = 2770, count = 2, hours = 1 },
 }
 Stub.bank.logs[2] = {
     { type = "deposit", name = Stub.playerName, id = 2589, count = 40, hours = 3 },
@@ -112,17 +113,121 @@ end
 -- ------------------------------------------------------------
 test("Scan speichert die Vorgaenge", function()
     RunBankVisit()
-    eq(#DB.GetGuildData().transactions, 4, "Vorgaenge")
+    eq(#DB.GetGuildData().transactions, 5, "Vorgaenge")
 end)
 
 test("Zweiter Besuch ohne neue Vorgaenge speichert nichts doppelt", function()
     RunBankVisit()
-    eq(#DB.GetGuildData().transactions, 4, "Vorgaenge")
+    eq(#DB.GetGuildData().transactions, 5, "Vorgaenge")
 end)
 
 test("Bestand nach dem Scan", function()
     eq(DB.GetInventoryCount(2770), 35, "Kupfererz")
     eq(DB.GetInventoryCount(13444), 12, "Grosser Manatrank")
+end)
+
+-- ------------------------------------------------------------
+-- Namen (seit 1.4.2: Nachnamen bleiben, Realm nur wenn bekannt)
+-- ------------------------------------------------------------
+local Names = GrindkeepNames
+
+test("Namen: Leerzeichen und Bindestriche bleiben, nur bekannte Realms fallen weg", function()
+    eq(Names.Key("Bobcation Immolation"), "Bobcation Immolation", "ohne Realm")
+    eq(Names.Key("Bobcation Immolation-Testrealm"), "Bobcation Immolation", "eigener Realm")
+    eq(Names.Key("Anna Meier-Schulz"), "Anna Meier-Schulz", "Bindestrich im Nachnamen")
+    eq(Names.Key("Anna Meier-Schulz-Testrealm"), "Anna Meier-Schulz", "Bindestrich + Realm")
+    eq(Names.Key("Krutolo Zitterhand-Fremdrealm"), "Krutolo Zitterhand-Fremdrealm", "fremder Realm bleibt Name")
+    eq(Names.Key("  Anna   Krause "), "Anna Krause", "Leerzeichen zusammengefasst, nicht entfernt")
+    if not forever then
+        eq(Names.Key("Krutolo-Nachbarrealm"), "Krutolo-Nachbarrealm", "verbundener Realm bleibt")
+    end
+end)
+
+test("Namen: Nachnamen trennen, Vorname allein ist unsicher", function()
+    local same, exact = Names.Same("Anna Meier-Schulz", "Anna Krause")
+    eq(same, false, "zwei Annas")
+    same, exact = Names.Same("Anna Meier-Schulz", "Anna Meier-Schulz-Testrealm")
+    eq(same, true, "gleich")
+    eq(exact, false, "ohne Realm auf einer Seite: nicht exakt")
+    same, exact = Names.Same("Anna-Testrealm", "Anna Krause")
+    eq(same, true, "Vorname passt")
+    eq(exact, false, "aber unsicher")
+    eq(Names.Same("Krutolo Zitterhand", "Krutolo Zitterhand-Fremdrealm"), false, "fremder Realm")
+end)
+
+test("Bilanzen: Anna Meier-Schulz und Anna Krause getrennt", function()
+    local byName = {}
+    for _, e in ipairs(DB.GetPlayerList("name")) do byName[e.name] = e end
+    truthy(byName["Anna Meier-Schulz"], "Anna Meier-Schulz in der Liste")
+    truthy(byName["Anna Krause"], "Anna Krause in der Liste")
+    eq(byName["Anna"], nil, "kein zusammengelegtes 'Anna'")
+    eq(byName["Anna Meier-Schulz"].summary.itemWithdrawals, 5, "Entnahmen Meier-Schulz")
+    eq(byName["Anna Krause"].summary.itemWithdrawals, 2, "Entnahmen Krause")
+end)
+
+local function rosterName(name, realm)
+    -- Forever: Roster ohne Realm (gemessen), Retail: immer mit Realm
+    if forever then return name end
+    return name .. "-" .. (realm or Stub.realm)
+end
+Stub.roster = {
+    { name = rosterName("Krutolo Zitterhand"), rank = 1 },
+    { name = rosterName("Anna Meier-Schulz"), rank = 0 },
+    { name = rosterName("Anna Krause"), rank = 8 },
+    { name = rosterName(Stub.playerName), rank = 0 },
+}
+local Rank = Comm._RosterEntry
+
+test("Rang: voller Name mit/ohne Realm", function()
+    eq(Rank("Krutolo Zitterhand-Testrealm"), 1, "Krutolo mit Realm")
+    eq(Rank("Anna Meier-Schulz-Testrealm"), 0, "Bindestrich-Nachname")
+    eq(Rank("Anna Krause"), 8, "Anna Krause")
+end)
+
+test("Rang: nur Vorname - eindeutig erkannt, mehrdeutig niedrigster Rang", function()
+    eq(Rank("Krutolo-Testrealm"), 1, "Krutolo eindeutig")
+    eq(Rank("Anna-Testrealm"), 8, "Anna mehrdeutig: niedrigster Rang")
+end)
+
+test("Rang: Namensvetter von fremdem Realm wird nicht erkannt", function()
+    eq(Rank("Krutolo Zitterhand-Fremdrealm"), nil, "fremder Realm")
+end)
+
+test("Gilden-Abgleich: Zuordnung nur von vertrauten Absendern", function()
+    local function altMsg(twink, main, sender)
+        Comm._HandleAddonMessage("ALT:" .. twink .. "=" .. main, "GUILD", sender)
+        return DB.GetMain(twink)
+    end
+    eq(altMsg("Twink Eins", "Krutolo Zitterhand", "Krutolo Zitterhand-Testrealm"), "Krutolo Zitterhand", "Offizier")
+    eq(altMsg("Twink Zwei", "Krutolo Zitterhand", "Anna-Testrealm"), "Twink Zwei", "mehrdeutige Anna (Rang 8)")
+    eq(altMsg("Twink Drei", "Krutolo Zitterhand", "Krutolo Zitterhand-Fremdrealm"), "Twink Drei", "fremder Realm")
+    eq(altMsg("Twink Vier", "Krutolo Zitterhand", Stub.playerName .. "-Testrealm"), "Twink Vier", "eigenes Echo")
+end)
+
+test("Beute: Duplikat trotz Realm erkannt, Nachnamen getrennt", function()
+    DB.SetSetting("lootTrackingEnabled", true)
+    local g = DB.GetGuildData()
+    local before = #g.loot
+    local function remote(recipient, ts)
+        GrindkeepLoot.OnRemoteLoot({ ts = ts, itemID = 19019, itemLink = Stub.Link(19019), count = 1,
+            recipient = recipient, reportedBy = "Krutolo Zitterhand" })
+    end
+    remote("Anna Meier-Schulz-Testrealm", Stub.now)
+    remote("Anna Meier-Schulz", Stub.now + 10) -- dieselbe Vergabe
+    remote("Anna Krause", Stub.now + 20)       -- andere Person
+    eq(#g.loot - before, 2, "neue Loot-Eintraege")
+end)
+
+test("Umstieg 1.4.1 -> 1.4.2: gekuerzte Twink-Namen werden wieder voll", function()
+    local g = DB.GetGuildData()
+    g.alts = { ["Twinkie"] = "Krutolo", ["Anna"] = "Krutolo" } -- so speicherte 1.4.1
+    GrindkeepDB.schemaVersion = 5
+    DB.OnLoad()
+    eq(GrindkeepDB.schemaVersion, 6, "Schema")
+    eq(g.alts["Twinkie"], "Krutolo Zitterhand", "eindeutiger Main wieder voll")
+    eq(g.alts["Anna"], "Krutolo Zitterhand", "mehrdeutiger Twink bleibt als Vorname stehen")
+    eq(table.concat(DB.ambiguousAlts, ","), "Anna", "Hinweis auf mehrdeutige Namen")
+    g.alts = {}
 end)
 
 -- Sammelliste: Gegenstand, freier Text und ein dem Client unbekannter Gegenstand
@@ -176,7 +281,7 @@ test("GKW1-Code: Huelle, Pruefsumme, Kopfzeile", function()
     eq(rows[1][2], "1", "Formatversion bleibt 1")
     eq(rows[1][7], "1.4.2", "Addon-Version")
     eq(rows[1][11], tostring(Stub.interface), "Interface")
-    eq(counts.t, 4, "T")
+    eq(counts.t, 5, "T")
 end)
 
 test("I-Zeilen: Qualitaet, classID, subclassID", function()
@@ -246,6 +351,21 @@ test("Alle Befehle laufen ohne Lua-Fehler", function()
         "webseite 30", "webseite alles", "reset", "options", "help", "?" }) do
         local ok, err = pcall(SlashCmdList.GRINDKEEP, cmd)
         if not ok then error("/gkeep " .. cmd .. ": " .. tostring(err)) end
+    end
+end)
+
+test("Chat-Ausgaben enthalten kein loses |", function()
+    Stub.printed = {}
+    SlashCmdList.GRINDKEEP("?") -- unbekannt: volle Befehlsliste
+    SlashCmdList.GRINDKEEP("check")
+    SlashCmdList.GRINDKEEP("lager")
+    SlashCmdList.GRINDKEEP("namen")
+    SlashCmdList.GRINDKEEP("loot")
+    SlashCmdList.GRINDKEEP("min")
+    truthy(#Stub.printed > 20, "Ausgaben vorhanden")
+    for _, line in ipairs(Stub.printed) do
+        local plain = line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H.-|h.-|h", "")
+        if plain:find("|", 1, true) then error("| in: " .. line) end
     end
 end)
 

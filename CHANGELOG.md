@@ -3,6 +3,10 @@
 ## 1.4.2 (Beta)
 
 - Der Webseiten-Code schickt in der Zeile `I` jetzt zusätzlich Gegenstandsklasse und -unterklasse aus dem Spiel mit (`C_Item.GetItemInfoInstant`, ohne Serverabfrage). Damit kann die Webseite den Bestand in Kategorien sortieren (z. B. Handwerkswaren › Metall & Stein). Kennt das Spiel einen Gegenstand nicht, fehlen die beiden Felder. Codes aus 1.4.0 und 1.4.1 bleiben gültig.
+- Namen: Grindkeep unterscheidet Charaktere wieder über den vollen Namen. „Anna Meier-Schulz“ und „Anna Krause“ haben getrennte Bilanzen, Twinks und Beute (1.3.1 bis 1.4.1 haben nur den Vornamen verglichen). Ein Anhang „-Xyz“ gilt nur als Realm, wenn es der eigene oder ein verbundener Realm ist; Bindestriche im Nachnamen bleiben erhalten.
+- Gilden-Abgleich: Nennt ein Absender nur den Vornamen, zählt bei mehreren passenden Mitgliedern der niedrigste Rang. Vorher bekam „Anna“ den Rang der ersten Anna im Roster.
+- Beim ersten Start werden auf den Vornamen gekürzte Twink-Zuordnungen wieder zu vollen Namen, wenn das eindeutig ist. Nicht eindeutige Namen meldet Grindkeep im Chat.
+- Texte: kein „|“ mehr in Chat- und Hilfetexten (WoW-Steuerzeichen; bei „an|aus“ oder „deposits|activity“ wurde Text verschluckt).
 - Tests mit nachgebauter WoW-API (`sh tests/run.sh`); `.pkgmeta` schließt `tests/` vom Paket aus.
 
 ## 1.4.1 (Beta)

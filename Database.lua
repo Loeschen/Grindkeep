@@ -97,39 +97,21 @@ local Database = {}
 _G.GrindkeepDatabase = Database
 
 -- ============================================================
--- Namen (seit 1.3.1)
+-- Namen (seit 1.4.2, siehe Names.lua)
 -- ============================================================
 -- WoW Forever: Charaktere haben Vor- UND Nachnamen ("Krutolo Zitterhand").
--- Addon-Nachrichten, Fluestern und teils auch Listen nennen aber nur den
--- Vornamen mit Realm ("Krutolo-Realm"). Damit Gildenliste, Bank-Log,
--- Twink-Zuordnung und Abgleich denselben Charakter erkennen, vergleicht
--- Grindkeep immer ueber einen einheitlichen Schluessel: Vorname, und nur
--- bei einem fremden Realm "-Realm" dahinter. Der Nachname ist reine Anzeige.
--- Auf Retail (Namen ohne Leerzeichen) aendert sich dadurch nichts.
+-- 1.3.1 bis 1.4.1 haben nur den Vornamen als Schluessel benutzt - dann
+-- landeten "Anna Meier-Schulz" und "Anna Krause" in derselben Bilanz. Seit
+-- 1.4.2 ist der Schluessel der volle Name; ein Realm-Anhang nur bei einem
+-- verbundenen (nicht dem eigenen) Realm. Ein Bindestrich im Nachnamen ist
+-- kein Realm. Auf Retail (Namen ohne Leerzeichen) aendert sich nichts.
 local function FirstWord(n)
     n = (n or ""):gsub("^%s+", ""):gsub("%s+$", "")
     return (n:match("^(%S+)") or n)
 end
 
-local function OwnRealm()
-    local r = GetNormalizedRealmName and GetNormalizedRealmName() or nil
-    if type(r) ~= "string" or r == "" then return nil end
-    return (r:gsub("[%s%-]", ""))
-end
-
 function Database.NameKey(name)
-    if type(name) ~= "string" then return name end
-    name = name:gsub("^%s+", ""):gsub("%s+$", "")
-    if name == "" or name == "?" then return name end
-    local base, realm = name:match("^(.-)%-([^%-]+)$")
-    if not base or base == "" then base, realm = name, nil end
-    base = FirstWord(base)
-    if realm then
-        realm = realm:gsub("%s", "")
-        local own = OwnRealm()
-        if realm ~= "" and realm ~= own then return base .. "-" .. realm end
-    end
-    return base
+    return _G.GrindkeepNames.Key(name)
 end
 local NameKey = Database.NameKey
 Database.FirstWord = FirstWord
@@ -1127,7 +1109,9 @@ function Database.SetStorageChar(key, enabled)
     if enabled then
         local c = root[key] or { bags = {}, bank = {} }
         c.enabled = true
-        c.name = c.name or (key:match("^([^-]+)") or key)
+        -- Realm nur abtrennen, wenn es wirklich einer ist (Nachnamen koennen
+        -- Bindestriche enthalten, siehe Names.lua)
+        c.name = c.name or _G.GrindkeepNames.Base(key)
         root[key] = c
     elseif root[key] then
         root[key].enabled = false
@@ -1499,7 +1483,51 @@ end
 -- Start: wird von Core.lua beim ADDON_LOADED dieses Addons aufgerufen,
 -- also sobald die gespeicherten Daten wirklich geladen sind.
 -- ============================================================
-local SCHEMA_VERSION = 5 -- 3: Vorgangszaehler je Spieler (txCount); 4: einheitliche Namen (Vorname, Forever); 5: Geister-Eintraege entfernen
+local SCHEMA_VERSION = 6 -- 3: Vorgangszaehler je Spieler (txCount); 4: einheitliche Namen (Vorname, Forever); 5: Geister-Eintraege entfernen; 6: volle Namen (Nachnamen bleiben)
+
+-- Umstieg 1.4.1 -> 1.4.2: Twink-Zuordnungen wurden auf den Vornamen gekuerzt
+-- ("Anna"). Gibt es in den gespeicherten Daten genau EINEN vollen Namen mit
+-- diesem Vornamen, wird er wieder eingesetzt. Ist es nicht eindeutig (zwei
+-- "Anna ..."), bleibt der Vorname stehen; Rueckgabe: Liste dieser Namen,
+-- damit Grindkeep im Chat darauf hinweisen kann.
+local function ExpandShortAltNames(g)
+    local fullByFirst = {}
+    local function seen(name)
+        local key = NameKey(name)
+        if type(key) ~= "string" or key == "" or key == "?" then return end
+        if not key:find(" ", 1, true) then return end -- nur volle Namen
+        -- Realm nur ueber Names.Split abtrennen: "Meier-Schulz" ist kein Realm
+        local base, realm = _G.GrindkeepNames.Split(key)
+        local slot = FirstWord(base) .. (realm and ("-" .. realm) or "")
+        fullByFirst[slot] = fullByFirst[slot] or {}
+        fullByFirst[slot][key] = true
+    end
+    for _, tx in ipairs(g.transactions or {}) do seen(tx.player) end
+    for _, e in ipairs(g.loot or {}) do seen(e.recipient) end
+    if IsInGuild and IsInGuild() and GetNumGuildMembers and GetGuildRosterInfo then
+        for i = 1, GetNumGuildMembers() or 0 do seen((GetGuildRosterInfo(i))) end
+    end
+
+    local ambiguous = {}
+    local function expand(name)
+        if type(name) ~= "string" or name:find(" ", 1, true) then return name end
+        local candidates = fullByFirst[name]
+        if not candidates then return name end
+        local only, n = nil, 0
+        for full in pairs(candidates) do only, n = full, n + 1 end
+        if n == 1 then return only end
+        ambiguous[name] = true
+        return name
+    end
+    local fixed = {}
+    for alt, main in pairs(g.alts or {}) do fixed[expand(alt)] = expand(main) end
+    g.alts = fixed
+    local list = {}
+    for name in pairs(ambiguous) do table.insert(list, name) end
+    table.sort(list)
+    return list
+end
+Database.ExpandShortAltNames = ExpandShortAltNames
 
 -- Geister-Eintraege aus leeren Log-Faechern (Platzhalter des Servers, siehe
 -- IsUsableEntry in Core.lua): kein Spieler UND kein echter Inhalt, oder eine
@@ -1553,8 +1581,13 @@ function Database.OnLoad()
     -- dem neuen, sprachneutralen Kategorie-Schluessel neu aufbauen, alte
     -- Abgleich-Listen des frueheren Scan-Verfahrens entfernen.
     if (GrindkeepDB.schemaVersion or 1) < SCHEMA_VERSION then
+        local fromVersion = GrindkeepDB.schemaVersion or 1
+        Database.ambiguousAlts = {}
         for key in pairs(GrindkeepDB.guilds) do
             local g = EnsureGuildData(key)
+            if fromVersion >= 4 and fromVersion < 6 then
+                for _, name in ipairs(ExpandShortAltNames(g)) do table.insert(Database.ambiguousAlts, name) end
+            end
             NormalizeAlts(g)
             Database.PurgeGhostRecords(g)
             RebuildSummaries(g)

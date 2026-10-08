@@ -940,6 +940,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if removed and removed > 0 and DB.GetSetting("scanChatMessages") then
                 Print(string.format(L["CORE_PRUNED"], removed))
             end
+            -- Umstieg auf volle Namen (1.4.2): nicht eindeutige Twinks melden
+            if DB.ambiguousAlts and #DB.ambiguousAlts > 0 then
+                Print(string.format(L["CORE_ALTS_AMBIGUOUS"], table.concat(DB.ambiguousAlts, ", ")))
+            end
             if _G.GrindkeepStyle then _G.GrindkeepStyle.Apply() end
             if _G.GrindkeepUI and _G.GrindkeepUI.ApplySavedSettings then
                 _G.GrindkeepUI.ApplySavedSettings()
@@ -1231,7 +1235,7 @@ local function PrintCheck()
         end
 
         CheckLine(string.format(L["CORE_CHECK_TAB_LABEL"], t),
-            string.format("%s | %s: %s | %s: %s",
+            string.format("%s - %s: %s - %s: %s",
                 name or "?",
                 L["CORE_CHECK_VIEWABLE"], tostring(isViewable),
                 L["CORE_CHECK_FIRST_LOG"], firstEntry))

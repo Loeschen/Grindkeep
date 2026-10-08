@@ -21,9 +21,8 @@ end
 -- Sie werden angezeigt, lassen den Lauf aber nicht scheitern. Mit
 -- STRICT=1 zaehlen sie wie Fehler. Sobald sie behoben sind: hier streichen.
 local STRICT = os.getenv("STRICT") == "1"
+-- ("|" in Texten und "vorgaenge" sind seit 1.4.2 behoben und zaehlen wieder als Fehler.)
 local KNOWN_OPEN = {
-    pipe = true,                          -- "|" in Chat-/Hilfetexten (Locale.lua)
-    ["translit:vorgaeng"] = true,         -- Befehlswort "vorgaenge" in CORE_HELP_REPORT
     ["api:Core.lua:QueryGuildBankLog"] = true, -- Existenz nur indirekt geprueft
 }
 local function known(category, msg)
