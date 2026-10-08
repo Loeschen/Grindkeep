@@ -18,6 +18,9 @@
       I  ItemID  Qualitaet (0 grau, 1 weiss, 2 gruen, 3 blau, 4 lila, 5 orange,
          6 Artefakt, 7 Erbstueck)   - seit 1.4.1, je Gegenstand einmal, nur
          wenn bekannt. Aeltere Webseiten ignorieren unbekannte Zeilenarten.
+         Seit 1.4.2 optional dahinter classID und subclassID aus
+         C_Item.GetItemInfoInstant (Gegenstandsklasse/-unterklasse fuer die
+         Kategorien der Webseite). Fehlen beide, wenn das Spiel sie nicht kennt.
       E  AnzahlT  AnzahlS  AnzahlC
     Zeiten: Unix-Sekunden (Serverzeit). Fehlende Zahlen: 0. Spielernamen roh,
     so wie das Bank-Log sie liefert (in WoW Forever mit Nachnamen).
@@ -97,6 +100,20 @@ function WebExport.QualityOf(itemID, itemLink)
     q = tonumber(q)
     if q and q >= 0 and q <= 8 then return math.floor(q) end
     return nil
+end
+
+-- Gegenstandsklasse und -unterklasse (seit 1.4.2) oder nil. GetItemInfoInstant
+-- braucht keine Serverabfrage. Neuere Clients: C_Item.GetItemInfoInstant,
+-- aeltere: globales GetItemInfoInstant. Rueckgabe 6 und 7: classID, subClassID.
+function WebExport.ClassOf(itemID)
+    itemID = tonumber(itemID)
+    if not itemID or itemID <= 0 then return nil end
+    local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if not f then return nil end
+    local ok, _, _, _, _, _, classID, subClassID = pcall(f, itemID)
+    classID, subClassID = tonumber(classID), tonumber(subClassID)
+    if not ok or not classID or not subClassID or classID < 0 or subClassID < 0 then return nil end
+    return math.floor(classID), math.floor(subClassID)
 end
 
 -- Adler-32 (ohne Bit-Operationen, laeuft in jedem Lua)
@@ -189,10 +206,19 @@ function WebExport.BuildPayload(mode)
     end
 
     -- Seltenheit je Gegenstand (seit 1.4.1), damit die Webseite die Namen
-    -- in der passenden Farbe zeigen kann
+    -- in der passenden Farbe zeigen kann; seit 1.4.2 dahinter Klasse und
+    -- Unterklasse fuer die Kategorien. Ohne bekannte Seltenheit keine Zeile:
+    -- ein leeres Feld laese die Webseite als 0 (grau).
     for _, itemID in ipairs(order) do
         local q = WebExport.QualityOf(itemID, seen[itemID].link)
-        if q then table.insert(lines, Line({ "I", Num(itemID), Num(q) })) end
+        if q then
+            local fields = { "I", Num(itemID), Num(q) }
+            local classID, subClassID = WebExport.ClassOf(itemID)
+            if classID then
+                fields[4], fields[5] = Num(classID), Num(subClassID)
+            end
+            table.insert(lines, Line(fields))
+        end
     end
 
     table.insert(lines, Line({ "E", Num(nT), Num(nS), Num(nC) }))

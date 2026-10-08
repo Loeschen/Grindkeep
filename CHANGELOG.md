@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2 (Beta)
+
+- Der Webseiten-Code schickt in der Zeile `I` jetzt zusätzlich Gegenstandsklasse und -unterklasse aus dem Spiel mit (`C_Item.GetItemInfoInstant`, ohne Serverabfrage). Damit kann die Webseite den Bestand in Kategorien sortieren (z. B. Handwerkswaren › Metall & Stein). Kennt das Spiel einen Gegenstand nicht, fehlen die beiden Felder. Codes aus 1.4.0 und 1.4.1 bleiben gültig.
+- Tests mit nachgebauter WoW-API (`sh tests/run.sh`); `.pkgmeta` schließt `tests/` vom Paket aus.
+
 ## 1.4.1 (Beta)
 
 - Neu: Den Code für die Gilden-Webseite gibt es jetzt per Knopf. Im Export-Fenster als viertes Format „Webseite“ (mit „Seit letztem Export“ oder „Alles“), außerdem im Zahnrad-Menü „Für die Webseite exportieren …“. `/gkeep webseite` funktioniert weiterhin.

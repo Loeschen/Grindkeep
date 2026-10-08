@@ -4,7 +4,7 @@
 ## Title-deDE: Grindkeep
 ## Notes-deDE: Gildenbank-Protokoll und Bestand: wer hat was eingelegt und entnommen, Suche, Mindestbestände, Twink-Zuordnung.
 ## Author: Bobcation
-## Version: 1.4.1
+## Version: 1.4.2
 ## Category: Guild
 ## IconTexture: Interface\Icons\INV_Misc_Coin_02
 ## AddonCompartmentFunc: Grindkeep_OnAddonCompartmentClick
