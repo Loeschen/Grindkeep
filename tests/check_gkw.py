@@ -50,5 +50,24 @@ old = gkw.parse((bot / "docs/grindkeep/GKW1-beispiel.txt").read_text(encoding="u
 check(old.header.addon_version == "1.4.0" and not old.qualities and not old.classes, "1.4.0-Beispiel")
 print(f"[gkw.py] 1.4.0-Beispiel: {len(old.transactions)} T, {len(old.stock)} S, {len(old.collect)} C")
 
+# Spielerschluessel: Webseite (player_key) und Addon (Names.Key, siehe
+# tests/run.lua) muessen dieselben Schluessel bilden. Eigener Realm "Testrealm".
+SAME_KEYS = {
+    "Bobcation Immolation": "Bobcation Immolation",
+    "Bobcation Immolation-Testrealm": "Bobcation Immolation",
+    "Anna Meier-Schulz": "Anna Meier-Schulz",
+    "Anna Meier-Schulz-Testrealm": "Anna Meier-Schulz",
+    "Anna Krause": "Anna Krause",
+    "  Anna   Krause ": "Anna Krause",
+    "Krutolo Zitterhand-Fremdrealm": "Krutolo Zitterhand-Fremdrealm",
+    "?": "",
+}
+for raw, expected in SAME_KEYS.items():
+    got = gkw.player_key(raw, "Testrealm")
+    check(got == expected, f"player_key({raw!r}) = {got!r}, Addon erwartet {expected!r}")
+check(gkw.player_key("Anna Meier-Schulz", "Testrealm") != gkw.player_key("Anna Krause", "Testrealm"),
+      "Anna Meier-Schulz und Anna Krause getrennt")
+print(f"[gkw.py] Spielerschluessel: {len(SAME_KEYS)} Faelle gegen das Addon geprueft")
+
 print(f"[gkw.py] {'alles in Ordnung' if failures == 0 else str(failures) + ' Fehler'}")
 sys.exit(1 if failures else 0)
