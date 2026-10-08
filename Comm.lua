@@ -51,37 +51,35 @@ end
 -- ============================================================
 -- Namen
 -- ============================================================
+local Names = _G.GrindkeepNames
+
 local function MyRealm()
-    local realm = GetNormalizedRealmName and GetNormalizedRealmName() or nil
-    if realm == "" then realm = nil end
-    return realm
+    return Names.OwnRealm()
 end
 
--- Vollstaendiger Name "Name-Realm". Namen ohne Realm gehoeren zum eigenen
--- Realm. Liefert ein Client gar keinen Realm, bleibt der Name, wie er ist.
+-- Vollstaendiger Name mit Realm (seit 1.4.2 MIT Nachnamen, siehe Names.lua).
+-- Namen ohne Realm gehoeren zum eigenen Realm. Nur fuer Anzeige/Diagnose -
+-- verglichen wird mit SameCharacter.
 local function FullName(name)
-    if type(name) ~= "string" or name == "" then return nil end
-    if name:find("-", 1, true) then return name end
-    local realm = MyRealm()
-    return realm and (name .. "-" .. realm) or name
+    local base, realm = Names.Split(name)
+    if not base then return nil end
+    realm = realm or MyRealm()
+    return realm and (base .. "-" .. realm) or base
 end
 
+-- Anzeigename ohne (eigenen oder verbundenen) Realm, mit Nachnamen
 local function ShortName(name)
     if type(name) ~= "string" then return "?" end
-    return name:match("^([^-]+)") or name
+    return Names.Base(name)
 end
 
--- Sind a und b derselbe Charakter? Mit Realm auf beiden Seiten wird exakt
--- verglichen (sonst koennte sich ein Namensvetter von einem anderen Realm
--- als Offizier ausgeben). Liefert ein Client auf einer Seite keinen Realm
--- (und kennt auch den eigenen nicht), bleibt nur der Name.
+-- Derselbe Charakter? Volle Namen muessen gleich sein ("Anna Meier-Schulz"
+-- ist nicht "Anna Krause"); nennt eine Seite nur den Vornamen, ist es ein
+-- unsicherer Treffer (zweiter Rueckgabewert false), siehe RosterEntry.
+-- Ein Anhang zaehlt nur als Realm, wenn es der eigene oder ein verbundener
+-- ist - ein Namensvetter von einem fremden Realm passt also nie.
 local function SameCharacter(a, b)
-    local fa, fb = FullName(a), FullName(b)
-    if not fa or not fb then return false end
-    if fa == fb then return true end
-    local aHasRealm, bHasRealm = fa:find("-", 1, true) ~= nil, fb:find("-", 1, true) ~= nil
-    if aHasRealm and bHasRealm then return false end
-    return ShortName(fa) == ShortName(fb)
+    return Names.Same(a, b)
 end
 
 local function ValidName(name)
@@ -96,17 +94,28 @@ local function TrustedRankMax()
     return DB.GetSetting("syncTrustedRank")
 end
 
+-- Rang aus dem eigenen Roster. Ein genauer Treffer (voller Name, Realm
+-- passt) gewinnt. Gibt es nur unsichere Treffer (Vorname allein, Roster ohne
+-- Realm) oder mehrere, zaehlt der niedrigste Rang (hoechster Index): im
+-- Zweifel weniger Vertrauen statt mehr.
 local function RosterEntry(name)
     if not IsInGuild or not IsInGuild() then return nil end
-    if not FullName(name) then return nil end
+    if type(name) ~= "string" or name == "" then return nil end
     local num = GetNumGuildMembers and GetNumGuildMembers() or 0
+    local exactRank, exactOnline, looseRank, looseOnline
     for i = 1, num do
         local fullName, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
-        if fullName and SameCharacter(fullName, name) then
-            return rankIndex, online
+        if fullName and rankIndex then
+            local same, exact = SameCharacter(fullName, name)
+            if same and exact then
+                if not exactRank or rankIndex > exactRank then exactRank, exactOnline = rankIndex, online end
+            elseif same then
+                if not looseRank or rankIndex > looseRank then looseRank, looseOnline = rankIndex, online end
+            end
         end
     end
-    return nil
+    if exactRank then return exactRank, exactOnline end
+    return looseRank, looseOnline
 end
 
 local function IsTrusted(name)
@@ -743,8 +752,18 @@ end
 -- ============================================================
 -- Event-Handling
 -- ============================================================
+local lastSender = nil -- fuer /gkeep namen: wie der letzte Absender wirklich ankam
+
 local function HandleAddonMessage(message, channel, sender)
-    if SameCharacter(sender, MyFullName()) then return end -- eigenes Echo
+    local isMe, exactlyMe = SameCharacter(sender, MyFullName())
+    if isMe and exactlyMe then return end -- eigenes Echo
+    if isMe and not exactlyMe and sender:match("^[^%s%-]+%-") then
+        -- Absender nur mit Vornamen, der zu meinem passt: als Echo werten
+        -- (Forever-Absender ohne Nachnamen); fremde Absender haben andere Vornamen
+        local myFirst = (UnitName and UnitName("player") or ""):match("^(%S+)")
+        if myFirst and sender:match("^([^%-]+)") == myFirst then return end
+    end
+    lastSender = sender
 
     if message == "ALTREQ" then
         if channel == "GUILD" then OnAltRequest(sender) end
@@ -811,6 +830,23 @@ _G.GrindkeepComm = {
     ImportLoot = ImportLoot,
     ShowLootImportDialog = ShowLootImportDialog,
     ShowTextWindow = ShowTextWindow,
+    -- Diagnose fuer /gkeep namen (seit 1.3.1)
+    NameInfo = function()
+        local myRank = RosterEntry(MyFullName())
+        return {
+            unitName = UnitName and UnitName("player") or nil,
+            fullName = MyFullName(),
+            realm = MyRealm(),
+            rankFound = myRank ~= nil,
+            rank = myRank,
+            trusted = IAmTrusted(),
+            lastSender = lastSender,
+            lastSenderFull = lastSender and FullName(lastSender) or nil,
+        }
+    end,
+    _FullName = FullName,
+    _SameCharacter = SameCharacter,
+    _RosterEntry = RosterEntry,
     -- fuer die Tests
     _Base64Encode = Base64Encode,
     _Base64Decode = Base64Decode,

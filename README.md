@@ -20,6 +20,7 @@ Grindkeep merkt sich, was in der Gildenbank passiert, und zeigt es übersichtlic
 - **Lager-Twinks:** eigene Charaktere als Lager markieren, Taschen und Bank werden dann automatisch erfasst.
 - **Sammelliste:** Ziele wie „200 Kupfererz für die Bank“ anlegen und den Fortschritt verfolgen.
 - **Export:** Sammelliste, Bestand, Vorgänge und Bilanz als Discord-Text (automatisch in Nachrichten unter 2000 Zeichen geteilt), als CSV für Excel/Google Sheets oder als reinen Text.
+- **Gilden-Webseite:** im Export-Fenster das Format „Webseite“ wählen (oder Zahnrad → „Für die Webseite exportieren …“) – der Code wird auf der Gilden-Webseite eingefügt.
 - **Beute:** optional, wer in Gruppe oder Raid welchen Gegenstand bekommen hat.
 - **Designs:** Klassisch (passend zu WoW), Modern, Minimal und Glas, dazu eine frei wählbare Akzentfarbe (Zahnrad oben rechts).
 
@@ -48,6 +49,7 @@ Grindkeep records what happens in your guild bank and shows it in one tabbed win
 - **Storage alts:** mark your own characters as storage; their bags and bank are recorded automatically.
 - **Collection list:** goals such as "200 Copper Ore for the bank" with progress tracking.
 - **Export:** collection list, stock, transactions and balances as Discord text (split into messages below 2000 characters), CSV for Excel/Google Sheets, or plain text.
+- **Guild website:** pick the "Website" format in the export window (or gear menu → "Code for the website ...") and paste the code on your guild website.
 - **Loot:** optional record of who received which item in groups and raids.
 - **Skins:** Classic (WoW style), Modern, Minimal and Glass, plus an accent colour of your choice (gear icon, top right).
 

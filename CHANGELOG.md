@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.4.2 (Beta)
+
+- Der Webseiten-Code schickt in der Zeile `I` jetzt zusätzlich Gegenstandsklasse und -unterklasse aus dem Spiel mit (`C_Item.GetItemInfoInstant`, ohne Serverabfrage). Damit kann die Webseite den Bestand in Kategorien sortieren (z. B. Handwerkswaren › Metall & Stein). Kennt das Spiel einen Gegenstand nicht, fehlen die beiden Felder. Codes aus 1.4.0 und 1.4.1 bleiben gültig.
+- Namen: Grindkeep unterscheidet Charaktere wieder über den vollen Namen. „Anna Meier-Schulz“ und „Anna Krause“ haben getrennte Bilanzen, Twinks und Beute (1.3.1 bis 1.4.1 haben nur den Vornamen verglichen). Ein Anhang „-Xyz“ gilt nur als Realm, wenn es der eigene oder ein verbundener Realm ist; Bindestriche im Nachnamen bleiben erhalten.
+- Gilden-Abgleich: Nennt ein Absender nur den Vornamen, zählt bei mehreren passenden Mitgliedern der niedrigste Rang. Vorher bekam „Anna“ den Rang der ersten Anna im Roster.
+- Beim ersten Start werden auf den Vornamen gekürzte Twink-Zuordnungen wieder zu vollen Namen, wenn das eindeutig ist. Nicht eindeutige Namen meldet Grindkeep im Chat.
+- Texte: kein „|“ mehr in Chat- und Hilfetexten (WoW-Steuerzeichen; bei „an|aus“ oder „deposits|activity“ wurde Text verschluckt).
+- Tests mit nachgebauter WoW-API (`sh tests/run.sh`); `.pkgmeta` schließt `tests/` vom Paket aus.
+
+## 1.4.1 (Beta)
+
+- Neu: Den Code für die Gilden-Webseite gibt es jetzt per Knopf. Im Export-Fenster als viertes Format „Webseite“ (mit „Seit letztem Export“ oder „Alles“), außerdem im Zahnrad-Menü „Für die Webseite exportieren …“. `/gkeep webseite` funktioniert weiterhin.
+- Der Webseiten-Code enthält jetzt die Seltenheit der Gegenstände (neue Zeilenart `I`), damit die Webseite Namen in der passenden Farbe zeigen kann. Ältere Webseiten ignorieren die neue Zeile.
+
+## 1.4.0 (Beta)
+
+- Neu: `/gkeep webseite` erzeugt einen Code für die Gilden-Webseite mit Gildenbank-Vorgängen, Bestand, Mindestbeständen, Sammelliste und Bankguthaben. Standard: alles seit dem letzten Export (mit einer Woche Überlappung), `/gkeep webseite alles` oder `/gkeep webseite 30` für alles bzw. die letzten 30 Tage. Die Webseite erkennt bereits bekannte Vorgänge selbst.
+- Grindkeep merkt sich beim Öffnen der Gildenbank den Kontostand.
+- WoW Forever: Charaktere haben Vor- und Nachnamen. Grindkeep erkennt Spieler jetzt überall über Vorname und Realm – der Nachname stört Gilden-Abgleich (Rang-Prüfung der Offiziere), Twink-Zuordnung, Mitglieder-Bilanz, Suche, Klassenfarben und Beute-Erfassung nicht mehr.
+- Bestehende Twink-Zuordnungen und Summen werden beim ersten Start einmalig auf die neue Schreibweise umgestellt; gespeicherte Vorgänge bleiben unverändert.
+- Behoben: „Unbekannt 0x … vor 20725 Tagen“ – leere Log-Fächer liefern Platzhalter mit ungültigem Item und einer Zeit um 1970. Die werden jetzt beim Einlesen verworfen, bereits gespeicherte Geister-Einträge beim ersten Start einmalig entfernt.
+- Neu: `/gkeep namen` zeigt, wie Grindkeep deinen Namen, die Gildenliste, das Bank-Log und den letzten Addon-Absender sieht (Hilfe bei der Fehlersuche).
+
 ## 1.3.0 (Beta)
 
 - Neues Hauptfenster mit Reitern: Übersicht, Mitglieder, Suche, Bestand, Sammelliste, Beute.
