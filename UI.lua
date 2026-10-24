@@ -191,15 +191,14 @@ local function ReadRoster()
         for i = 1, num do
             local fullName, _, _, _, _, _, _, _, _, _, classFileName = GetGuildRosterInfo(i)
             if fullName then
-                local shortName = fullName:match("^([^-]+)") or fullName
-                rosterClassByName[shortName] = classFileName
+                rosterClassByName[DB.NameKey(fullName)] = classFileName
             end
         end
     end)
 end
 
 local function ClassColor(name)
-    local class = rosterClassByName[name]
+    local class = rosterClassByName[DB.NameKey(name)]
     local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
     if c then return c.r, c.g, c.b end
     return 0.8, 0.8, 0.8
@@ -296,7 +295,7 @@ local function ShowPlayerContextMenu(playerName, ownerRegion)
         end)
 
         local g = DB.GetGuildData()
-        if g and g.alts[playerName] then
+        if g and g.alts[DB.NameKey(playerName)] then
             rootDescription:CreateButton(L["UI_CTX_UNASSIGN_TWINK"], function()
                 if DB.ClearAlt(playerName) then
                     print("|cff2ecc71[Grindkeep]|r " .. string.format(L["CORE_ALT_CLEARED"], playerName))
@@ -750,6 +749,9 @@ gearBtn:SetScript("OnClick", function(self)
                 _G.GrindkeepExportUI.Show(kinds[_G.GrindkeepUI.ActiveTab()])
             end
         end)
+        root:CreateButton(L["MENU_EXPORT_WEB"], function()
+            if _G.GrindkeepExportUI then _G.GrindkeepExportUI.Show(nil, "web") end
+        end)
         root:CreateButton(L["MENU_ALL_OPTIONS"], OpenAllOptions)
         root:CreateButton(L["MENU_HELP"], function()
             if _G.GrindkeepHelpUI then _G.GrindkeepHelpUI.Toggle() end
@@ -1007,7 +1009,7 @@ local function MakeTxRowInit(showPlayer)
 
         local hex = string.format("|cff%02x%02x%02x", color[1] * 255, color[2] * 255, color[3] * 255)
         local who = ""
-        if showPlayer or (tx.player and button.selectedPlayer and tx.player ~= button.selectedPlayer) then
+        if showPlayer or (tx.player and button.selectedPlayer and DB.NameKey(tx.player) ~= DB.NameKey(button.selectedPlayer)) then
             local r, g, b = ClassColor(tx.player or "?")
             who = string.format("|cff%02x%02x%02x%s|r  ", r * 255, g * 255, b * 255, tx.player or "?")
         end

@@ -435,7 +435,7 @@ local function RefreshStorageInfo()
         local bank = c.bankAt and date(L["DATE_FORMAT_SHORT"], c.bankAt) or L["STORAGE_BANK_NEVER"]
         table.insert(parts, string.format(L["STOCK_STORAGE_ENTRY"], c.name, bank))
     end
-    storageInfo:SetText(L["STOCK_STORAGE_PREFIX"] .. " " .. table.concat(parts, "  |  "))
+    storageInfo:SetText(L["STOCK_STORAGE_PREFIX"] .. " " .. table.concat(parts, "  /  "))
 end
 
 Refresh = function()

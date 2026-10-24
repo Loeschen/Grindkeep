@@ -10,6 +10,9 @@
                Tabelle  - mit Semikolon getrennt, direkt in Excel oder
                           Google Tabellen einfuegbar.
                Text     - schlichte Zeilen, z.B. fuer ein Forum.
+               Webseite - Code fuer die Gilden-Webseite (seit 1.4.1, siehe
+                          WebExport.lua). Enthaelt immer Vorgaenge, Bestand
+                          und Sammelliste; die Inhalt-Auswahl ist dann aus.
 
     WoW laesst Addons weder in die Zwischenablage schreiben noch Dateien
     anlegen. Deshalb landet der Text markiert in einem Textfeld; kopieren
@@ -319,7 +322,7 @@ Export._PackDiscord = PackDiscord
 -- Fenster
 -- ============================================================
 local Theme = _G.GrindkeepTheme
-local state = { kind = "collect", format = "discord", part = 1, chunks = { "" } }
+local state = { kind = "collect", format = "discord", part = 1, chunks = { "" }, webRange = "since" }
 
 local Frame = CreateFrame("Frame", "GrindkeepExportFrame", UIParent, "BackdropTemplate")
 Frame:SetSize(640, 470)
@@ -381,10 +384,10 @@ local function ToggleRow(anchor, labelText, entries, getter, setter, yOffset)
             b.label:SetTextColor(unpack(c))
         end
     end
-    return label, Paint
+    return label, Paint, buttons
 end
 
-local kindLabel, PaintKinds = ToggleRow(title, L["EXPORT_WHAT"], {
+local kindLabel, PaintKinds, kindButtons = ToggleRow(title, L["EXPORT_WHAT"], {
     { key = "collect",  label = L["EXPORT_KIND_COLLECT"] },
     { key = "stock",    label = L["EXPORT_KIND_STOCK"] },
     { key = "tx",       label = L["EXPORT_KIND_TX"] },
@@ -395,7 +398,55 @@ local formatLabel, PaintFormats = ToggleRow(kindLabel, L["EXPORT_HOW"], {
     { key = "discord", label = L["EXPORT_FORMAT_DISCORD"] },
     { key = "csv",     label = L["EXPORT_FORMAT_CSV"] },
     { key = "text",    label = L["EXPORT_FORMAT_TEXT"] },
+    { key = "web",     label = L["EXPORT_FORMAT_WEB"] },
 }, function() return state.format end, function(f) state.format = f end, -12)
+
+-- Zeitraum fuer den Webseiten-Code (seit 1.4.1): steht dort, wo bei Discord
+-- das Blaettern sitzt - beides wird nie gleichzeitig gebraucht.
+local webRangeButtons = {}
+do
+    local prev
+    for _, e in ipairs({ { key = "all", label = L["EXPORT_WEB_RANGE_ALL"] },
+                         { key = "since", label = L["EXPORT_WEB_RANGE_SINCE"] } }) do
+        local b = CreateFrame("Button", nil, Frame, "BackdropTemplate")
+        b:SetHeight(20)
+        b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        b.label:SetPoint("CENTER")
+        b.label:SetText(e.label)
+        b:SetWidth(math.max(50, (tonumber(b.label:GetStringWidth()) or 40) + 20))
+        if prev then
+            b:SetPoint("RIGHT", prev, "LEFT", 1, 0)
+        else
+            b:SetPoint("TOPRIGHT", Frame, "TOPRIGHT", -24, -76)
+        end
+        b:SetScript("OnClick", function() state.webRange = e.key; Rebuild() end)
+        b.key = e.key
+        table.insert(webRangeButtons, b)
+        prev = b
+    end
+end
+
+local function PaintWebRange()
+    local web = state.format == "web"
+    for _, b in ipairs(webRangeButtons) do
+        b:SetShown(web)
+        local on = state.webRange == b.key
+        local seg = Theme and Theme.Current().roles.segment
+        if seg and b.SetBackdrop then
+            b:SetBackdrop(seg.backdrop)
+            b:SetBackdropColor(unpack(on and Theme.Color("accentFill") or seg.bg))
+            b:SetBackdropBorderColor(unpack(on and Theme.Color("accent") or seg.border))
+        end
+        local c = Theme and Theme.Color(on and "accent" or "textMid") or (on and { 1, 0.82, 0, 1 } or { 0.8, 0.8, 0.8, 1 })
+        b.label:SetTextColor(unpack(c))
+    end
+    -- Der Webseiten-Code enthaelt immer alles (Vorgaenge, Bestand,
+    -- Sammelliste) - die Inhalt-Auswahl ist dann ohne Wirkung.
+    for _, b in ipairs(kindButtons) do
+        b:SetAlpha(web and 0.35 or 1)
+        b:EnableMouse(not web)
+    end
+end
 
 -- Teile blaettern (nur Discord)
 local prevBtn = CreateFrame("Button", nil, Frame, "UIPanelButtonTemplate")
@@ -470,18 +521,39 @@ end
 prevBtn:SetScript("OnClick", function() state.part = state.part - 1; ShowPart() end)
 nextBtn:SetScript("OnClick", function() state.part = state.part + 1; ShowPart() end)
 
-local EXPLAIN = { discord = "EXPORT_EXPLAIN_DISCORD", csv = "EXPORT_EXPLAIN_CSV", text = "EXPORT_EXPLAIN_TEXT" }
+local EXPLAIN = { discord = "EXPORT_EXPLAIN_DISCORD", csv = "EXPORT_EXPLAIN_CSV", text = "EXPORT_EXPLAIN_TEXT",
+    web = "EXPORT_EXPLAIN_WEB" }
+
+-- Webseiten-Code (seit 1.4.1 per Knopf, vorher nur /gkeep webseite)
+local function BuildWeb()
+    local WebExport = _G.GrindkeepWebExport
+    if not WebExport then return { L["EXPORT_FAILED"] } end
+    local ok, code, counts, label = pcall(WebExport.BuildCode, state.webRange == "all" and "alles" or nil)
+    if not ok or not code then
+        explain:SetText(L["WEB_NO_GUILD"])
+        return { "" }
+    end
+    local g = DB.GetGuildData and DB.GetGuildData()
+    if g then g.lastWebExportTs = DB.Now() end
+    explain:SetText(L["EXPORT_EXPLAIN_WEB"] .. "\n" ..
+        string.format(L["EXPORT_WEB_COUNTS"], counts.t, label, counts.s, counts.c))
+    return { code }
+end
 
 Rebuild = function()
-    PaintKinds(); PaintFormats()
+    PaintKinds(); PaintFormats(); PaintWebRange()
     explain:SetText(L[EXPLAIN[state.format]])
-    local ok, chunks = pcall(Export.Build, state.kind, state.format)
-    state.chunks = (ok and type(chunks) == "table" and #chunks > 0) and chunks or { L["EXPORT_FAILED"] }
+    if state.format == "web" then
+        state.chunks = BuildWeb()
+    else
+        local ok, chunks = pcall(Export.Build, state.kind, state.format)
+        state.chunks = (ok and type(chunks) == "table" and #chunks > 0) and chunks or { L["EXPORT_FAILED"] }
+    end
     state.part = 1
     ShowPart()
 end
 
-if Theme then Theme.OnChange(function() if Frame:IsShown() then PaintKinds(); PaintFormats() end end) end
+if Theme then Theme.OnChange(function() if Frame:IsShown() then PaintKinds(); PaintFormats(); PaintWebRange() end end) end
 
 _G.GrindkeepExportUI = {
     Frame = Frame,

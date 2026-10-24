@@ -144,9 +144,11 @@ end
 -- ============================================================
 local LOOT_DEDUP_SECONDS = 180
 
-local function BaseName(name)
-    if type(name) ~= "string" then return "" end
-    return name:match("^([^-]+)") or name
+-- Empfaenger vergleichen (seit 1.4.2 mit Nachnamen, siehe Names.lua):
+-- "Anna Meier-Schulz" und "Anna Krause" sind zwei Personen; "Anna" allein
+-- (Meldung ohne Nachnamen) passt zu einem vollen Namen mit diesem Vornamen.
+local function SameRecipient(a, b)
+    return (_G.GrindkeepNames.Same(a, b))
 end
 
 local function SameItem(a, b)
@@ -167,7 +169,7 @@ local function ShouldAdd(record, isRemote)
     for i = #g.loot, 1, -1 do
         local e = g.loot[i]
         if (isRemote or e.reportedBy ~= nil) and SameItem(e, record)
-            and BaseName(e.recipient) == BaseName(record.recipient)
+            and SameRecipient(e.recipient, record.recipient)
             and (e.count or 1) == (record.count or 1)
             and math.abs((e.ts or 0) - ts) <= LOOT_DEDUP_SECONDS then
             return false
