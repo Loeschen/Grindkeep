@@ -7,6 +7,7 @@
 - Gilden-Abgleich: Nennt ein Absender nur den Vornamen, zählt bei mehreren passenden Mitgliedern der niedrigste Rang. Vorher bekam „Anna“ den Rang der ersten Anna im Roster.
 - Beim ersten Start werden auf den Vornamen gekürzte Twink-Zuordnungen wieder zu vollen Namen, wenn das eindeutig ist. Nicht eindeutige Namen meldet Grindkeep im Chat.
 - Texte: kein „|“ mehr in Chat- und Hilfetexten (WoW-Steuerzeichen; bei „an|aus“ oder „deposits|activity“ wurde Text verschluckt).
+- Geld-Log ohne Doppelte (Live-Fund Forever, 10.11.2026): Liefert das Spiel bei einem Eintrag den Namen noch nicht, wurde derselbe Vorgang erst als „?“ und später mit Namen ein zweites Mal gespeichert. Jetzt wird der Eintrag einmal gespeichert und der Name nachgetragen. Ebenso kam derselbe Geld-Eintrag einmal als „repair“ und später als „withdraw“ – beides gilt beim Abgleich jetzt als derselbe Vorgang. Schon gespeicherte Doppelte dieser beiden Arten entfernt Grindkeep beim nächsten Öffnen der Gildenbank, solange der Vorgang noch im Log steht; echte gleiche Vorgänge mit Namen bleiben einzeln.
 - Tests mit nachgebauter WoW-API (`sh tests/run.sh`); `.pkgmeta` schließt `tests/` vom Paket aus.
 
 ## 1.4.1 (Beta)

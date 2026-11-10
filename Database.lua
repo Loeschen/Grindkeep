@@ -480,6 +480,34 @@ function Database.AddTransaction(record)
     return record.id
 end
 
+-- Spielernamen eines Datensatzes nachtragen (der Scan hatte ihn als "?"
+-- gespeichert, weil das Log den Namen noch nicht kannte).
+function Database.SetTransactionPlayer(id, player)
+    local g = GetGuildData()
+    if not g or type(player) ~= "string" or player == "" or player == "?" then return false end
+    local idx = g.transactionsById[id]
+    local rec = idx and g.transactions[idx]
+    if not rec then return false end
+    rec.player = player
+    RebuildSummaries(g)
+    return true
+end
+
+-- Datensaetze entfernen. ids: { [id] = true }. Rueckgabe: Anzahl entfernt.
+function Database.RemoveTransactions(ids)
+    local g = GetGuildData()
+    if not g or type(ids) ~= "table" or next(ids) == nil then return 0 end
+    local kept, removed = {}, 0
+    for _, rec in ipairs(g.transactions) do
+        if rec.id and ids[rec.id] then removed = removed + 1 else table.insert(kept, rec) end
+    end
+    if removed > 0 then
+        g.transactions = kept
+        RebuildSummaries(g)
+    end
+    return removed
+end
+
 -- Alle gespeicherten Eintraege eines Scan-Ziels (ein Fach oder das
 -- Geld-Log) ab einem Zeitpunkt - Grundlage fuer den Abgleich in Core.lua.
 function Database.GetTransactionsForTarget(kind, tab, sinceTs)

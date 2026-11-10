@@ -171,6 +171,10 @@ end
 -- Inhalts-Schluessel eines Vorgangs - bewusst OHNE Zeitangabe.
 local function EntryKey(kind, action, player, itemKey, count, amount)
     if action == "withdrawal" then action = "withdraw" end
+    -- Live-Fund Forever (10.11.2026): derselbe Geld-Eintrag kam in einem
+    -- Scan als "repair", in einem spaeteren als "withdraw" (im Spiel steht
+    -- "entnahm"). Fuer den Abgleich gelten beide deshalb als dasselbe.
+    if kind == "gold" and action == "repair" then action = "withdraw" end
     if kind == "gold" then
         return table.concat({ "g", tostring(action), KeyName(player), tostring(amount or 0) }, "\031")
     end
@@ -181,6 +185,18 @@ local function RecordKey(rec)
     return EntryKey(rec.kind, rec.action, rec.player, ItemKeyOf(rec.itemID, rec.itemLink), rec.count, rec.amount)
 end
 
+-- Schluessel ohne Spielernamen. Live-Fund Forever (10.11.2026): Das Log
+-- liefert den Namen manchmal noch nicht (Name nicht im Cache), derselbe
+-- Eintrag kam dann einmal als "?" und spaeter mit Namen - und wurde
+-- doppelt gespeichert. Zweite Rueckgabe: true, wenn der Name fehlt.
+local function LooseKey(key)
+    local parts = {}
+    for f in (key .. "\031"):gmatch("(.-)\031") do parts[#parts + 1] = f end
+    local unknown = parts[3] == ""
+    parts[3] = ""
+    return table.concat(parts, "\031"), unknown
+end
+
 -- Zuordnung ueber Inhalt und Zeit (fuer Faelle ohne Vorwissen: erster
 -- Scan, Import, Timeout). visible: Eintraege mit .key/.ts, beliebige
 -- Reihenfolge. stored: gespeicherte Eintraege. Jeder gespeicherte Eintrag
@@ -189,6 +205,7 @@ end
 -- Rueckgabe: Indizes (in visible) der Eintraege ohne Partner = neu.
 -- keyFn/tolFn sind optional (Standard: Gildenbank).
 local function FindNewEntries(visible, stored, now, keyFn, tolFn, skipIds)
+    local looseMatch = (keyFn == nil) -- nur mit dem Standard-Schluessel (Gildenbank)
     keyFn = keyFn or RecordKey
     tolFn = tolFn or TimeTolerance
     local newIdx = {}
@@ -199,7 +216,7 @@ local function FindNewEntries(visible, stored, now, keyFn, tolFn, skipIds)
         if not (skipIds and rec.id and skipIds[rec.id]) then
             local k = keyFn(rec)
             byKey[k] = byKey[k] or {}
-            table.insert(byKey[k], { ts = rec.ts or 0, id = rec.id, used = false })
+            table.insert(byKey[k], { ts = rec.ts or 0, id = rec.id, used = false, key = k })
         end
     end
 
@@ -233,10 +250,93 @@ local function FindNewEntries(visible, stored, now, keyFn, tolFn, skipIds)
         end
     end
 
+    -- Zweiter Durchgang: Eintraege ohne Partner, bei denen auf einer Seite
+    -- der Spielername fehlt ("?"), ueber Inhalt und Zeit ohne Namen
+    -- zuordnen. Hat der sichtbare Eintrag den Namen, der gespeicherte aber
+    -- nicht, wird der Name nachgetragen (e.fillName = ID des Datensatzes).
+    if looseMatch then
+        local byLoose = {}
+        for _, list in pairs(byKey) do
+            for _, cand in ipairs(list) do
+                local lk, unknown = LooseKey(cand.key)
+                cand.unknown = unknown
+                byLoose[lk] = byLoose[lk] or {}
+                table.insert(byLoose[lk], cand)
+            end
+        end
+        for _, i in ipairs(order) do
+            if isNew[i] then
+                local e = visible[i]
+                local lk, unknownE = LooseKey(e.key)
+                local tol = tolFn(now - e.ts)
+                local best, bestDiff
+                for _, cand in ipairs(byLoose[lk] or {}) do
+                    if not cand.used and (unknownE or cand.unknown) then
+                        local diff = math.abs(cand.ts - e.ts)
+                        if diff <= tol and (not bestDiff or diff < bestDiff) then
+                            best, bestDiff = cand, diff
+                        end
+                    end
+                end
+                if best then
+                    best.used = true
+                    e.matchedId = best.id
+                    if best.unknown and not unknownE then e.fillName = best.id end
+                    isNew[i] = nil
+                end
+            end
+        end
+    end
+
     for i = 1, #visible do
         if isNew[i] then table.insert(newIdx, i) end
     end
     return newIdx
+end
+
+-- Doppelte aus frueheren Scans entfernen (Live-Fund Forever, 10.11.2026).
+-- Das aktuelle Log ist die Wahrheit fuer seinen Zeitraum: Ein gespeicherter
+-- Datensatz in diesem Zeitraum, dem kein sichtbarer Eintrag zugeordnet ist,
+-- ist ein Doppelter, wenn ein sichtbarer Eintrag mit gleichem Inhalt in der
+-- Naehe schon einem ANDEREN Datensatz zugeordnet ist UND
+--  - beim ungenutzten Datensatz der Name fehlt ("?"), oder
+--  - die beiden sich nur in "repair"/"withdraw" unterscheiden.
+-- Echte gleiche Vorgaenge mit Namen bleiben unangetastet. Bei
+-- "repair"/"withdraw" gilt danach, was das Log jetzt sagt.
+-- vis: alle sichtbaren Eintraege mit .id/.ts/.record; stored: alle
+-- gespeicherten Datensaetze des Ziels ab kurz vor dem aeltesten Eintrag.
+local function FindLogDuplicates(vis, stored, now)
+    local remove, count = {}, 0
+    local oldest
+    for _, e in ipairs(vis) do if not oldest or e.ts < oldest then oldest = e.ts end end
+    if not oldest then return remove, 0 end
+    local byId, matched = {}, {}
+    for _, rec in ipairs(stored) do if rec.id then byId[rec.id] = rec end end
+    for _, e in ipairs(vis) do if e.id then matched[e.id] = true end end
+    for _, rec in ipairs(stored) do
+        if rec.id and not matched[rec.id] and (rec.ts or 0) >= oldest then
+            local key = RecordKey(rec)
+            local lk, unknown = LooseKey(key)
+            for _, e in ipairs(vis) do
+                local twin = e.id and byId[e.id]
+                if twin and twin ~= rec and not remove[twin.id]
+                    and math.abs((rec.ts or 0) - e.ts) <= TimeTolerance(now - e.ts) then
+                    local tKey = RecordKey(twin)
+                    local dupName = unknown and LooseKey(tKey) == lk
+                    local dupRepair = tKey == key and rec.kind == "gold" and rec.action ~= twin.action
+                        and (rec.action == "repair" or twin.action == "repair")
+                    if dupName or dupRepair then
+                        remove[rec.id] = true
+                        count = count + 1
+                        local now_ = e.record and e.record.action
+                        if dupRepair and now_ and twin.action ~= now_ then twin.action = now_ end
+                        break
+                    end
+                end
+            end
+        end
+    end
+    return remove, count
 end
 
 -- Abgleich zweier aufeinanderfolgender Scans desselben Logs. Das Log ist
@@ -266,6 +366,8 @@ end
 -- Fuer Comm.lua (Import/Loot), Database.lua (Zusammenfuehren) und Tests.
 _G.GrindkeepMatcher = {
     FindNewEntries = FindNewEntries,
+    FindLogDuplicates = FindLogDuplicates,
+    LooseKey = LooseKey,
     AlignWithBaseline = AlignWithBaseline,
     EntryKey = EntryKey,
     RecordKey = RecordKey,
@@ -398,6 +500,20 @@ local function ReconcileLog(targetKey, kind, tab, raw, confirmed)
         else
             e.id = e.matchedId
         end
+    end
+
+    -- Fehlende Namen nachtragen ("?" aus einem frueheren Scan)
+    for _, e in ipairs(candidates) do
+        if e.fillName and e.record and e.record.player and DB.SetTransactionPlayer then
+            DB.SetTransactionPlayer(e.fillName, e.record.player)
+        end
+    end
+
+    -- Doppelte aus frueheren Scans entfernen - nur bei frischer Serverantwort
+    if confirmed and DB.RemoveTransactions then
+        local fresh = DB.GetTransactionsForTarget(kind, tab, oldest - TimeTolerance(now - oldest))
+        local remove, count = FindLogDuplicates(vis, fresh, now)
+        if count > 0 then DB.RemoveTransactions(remove) end
     end
 
     -- Neuen Vergleichsstand nur aus einer frischen Serverantwort ableiten
