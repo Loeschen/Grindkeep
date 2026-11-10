@@ -314,7 +314,7 @@ local function FindLogDuplicates(vis, stored, now)
     for _, rec in ipairs(stored) do if rec.id then byId[rec.id] = rec end end
     for _, e in ipairs(vis) do if e.id then matched[e.id] = true end end
     for _, rec in ipairs(stored) do
-        if rec.id and not matched[rec.id] and (rec.ts or 0) >= oldest then
+        if rec.id and not matched[rec.id] and (rec.ts or 0) >= oldest - TimeTolerance(now - oldest) then
             local key = RecordKey(rec)
             local lk, unknown = LooseKey(key)
             for _, e in ipairs(vis) do
@@ -528,6 +528,19 @@ local function ReconcileLog(targetKey, kind, tab, raw, confirmed)
     return added
 end
 
+-- Logs, in denen beim letzten Lesen noch Namen fehlten ("?"). Sie werden
+-- bei geoeffneter Bank kurz danach noch einmal gelesen (siehe RetryNames),
+-- dann sind die Namen meist geladen und werden nachgetragen.
+local namesPending = {}
+
+local function NotePendingNames(targetKey, target, raw)
+    local unknown = false
+    for _, e in ipairs(raw) do
+        if select(2, LooseKey(e.key)) then unknown = true break end
+    end
+    namesPending[targetKey] = unknown and target or nil
+end
+
 -- ============================================================
 -- Ein Tab: Item-Transaktionen einlesen
 -- ============================================================
@@ -577,6 +590,7 @@ local function ProcessItemTab(tabIndex, confirmed)
         end
     end
 
+    if confirmed then NotePendingNames("item:" .. tabIndex, { kind = "item", tab = tabIndex }, raw) end
     return ReconcileLog("item:" .. tabIndex, "item", tabIndex, raw, confirmed)
 end
 
@@ -608,6 +622,7 @@ local function ProcessMoneyLog(confirmed)
         end
     end
 
+    if confirmed then NotePendingNames("gold", { kind = "money" }, raw) end
     return ReconcileLog("gold", "gold", nil, raw, confirmed)
 end
 
@@ -640,9 +655,12 @@ end
 
 local scanItemTabs = 0
 
+local RetryNamesLater -- Vorwaertsdeklaration (siehe RetryNames)
+
 local function FinishScan()
     scanning = false
     currentTarget = nil
+    if RetryNamesLater then RetryNamesLater() end
     if DB.SetLastLogScan then DB.SetLastLogScan(scanItemTabs) end
     if _G.GrindkeepUI and _G.GrindkeepUI.Refresh then _G.GrindkeepUI.Refresh() end
     if DB.GetSetting("scanChatMessages") then
@@ -703,8 +721,40 @@ local function ProcessCurrentTarget(confirmed)
     AdvanceQueue()
 end
 
+-- Logs mit fehlenden Namen erneut lesen (ohne neue Serverabfrage).
+local function ReprocessPending()
+    if scanning or next(namesPending) == nil or not IsBankOpen() then return end
+    local targets = {}
+    for _, t in pairs(namesPending) do table.insert(targets, t) end
+    for _, t in ipairs(targets) do
+        if t.kind == "money" then ProcessMoneyLog(true) else ProcessItemTab(t.tab, true) end
+    end
+    if _G.GrindkeepUI and _G.GrindkeepUI.Refresh then _G.GrindkeepUI.Refresh() end
+end
+
+local retryCount = 0
+local function RetryNames()
+    if scanning or next(namesPending) == nil or not IsBankOpen() then return end
+    ReprocessPending()
+    retryCount = retryCount + 1
+    if next(namesPending) ~= nil and retryCount < 3 then
+        -- Logs noch einmal anfordern; die Antwort (GUILDBANKLOG_UPDATE)
+        -- liest sie erneut, danach ein weiterer Versuch nach 5 Sekunden.
+        for _, t in pairs(namesPending) do FireQuery(t) end
+        if C_Timer and C_Timer.After then C_Timer.After(5, RetryNames) end
+    end
+end
+
+RetryNamesLater = function()
+    retryCount = 0
+    if next(namesPending) ~= nil and C_Timer and C_Timer.After then C_Timer.After(5, RetryNames) end
+end
+
 local function OnLogUpdate()
-    if not scanning or not currentTarget then return end
+    if not scanning or not currentTarget then
+        ReprocessPending()
+        return
+    end
     ProcessCurrentTarget(true)
 end
 
