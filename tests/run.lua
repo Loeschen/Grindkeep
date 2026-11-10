@@ -381,5 +381,88 @@ test("Allgemeiner Export baut alle Arten und Formate", function()
     end
 end)
 
+-- ------------------------------------------------------------
+-- Geld-Log: fehlende Namen und repair/withdraw (Live-Fund Forever, 10.11.2026)
+-- ------------------------------------------------------------
+local function goldRecs(amount)
+    local list = {}
+    for _, tx in ipairs(DB.GetGuildData().transactions) do
+        if tx.kind == "gold" and tx.amount == amount then list[#list + 1] = tx end
+    end
+    return list
+end
+
+local function inject(player, action, amount, hours)
+    DB.AddTransaction({ ts = DB.Now() - hours * 3600, player = player, kind = "gold", action = action, amount = amount })
+end
+
+test("Geld-Log: Name fehlt erst, kommt spaeter - kein Doppelter, Name nachgetragen", function()
+    Stub.bank.money = {
+        { type = "deposit", name = Stub.playerName, amount = 125000, hours = 1 },
+        { type = "deposit", name = nil, amount = 21, hours = 5 },
+    }
+    RunBankVisit()
+    eq(#goldRecs(21), 1, "nach Scan ohne Namen")
+    eq(goldRecs(21)[1].player, "?", "erst ohne Namen")
+    Stub.bank.money[2].name = "Marquez Gesegnet"
+    RunBankVisit()
+    eq(#goldRecs(21), 1, "nach Scan mit Namen")
+    eq(goldRecs(21)[1].player, "Marquez Gesegnet", "Name nachgetragen")
+end)
+
+test("Geld-Log: alte Doppelte mit ? werden beim naechsten Scan entfernt", function()
+    inject("Borin Donnerhuf", "deposit", 1000, 6)
+    inject("?", "deposit", 1000, 6)
+    inject("?", "withdraw", 27, 7)
+    inject("Serania Storm", "withdraw", 27, 7)
+    table.insert(Stub.bank.money, { type = "deposit", name = "Borin Donnerhuf", amount = 1000, hours = 6 })
+    table.insert(Stub.bank.money, { type = "withdraw", name = "Serania Storm", amount = 27, hours = 7 })
+    RunBankVisit()
+    eq(#goldRecs(1000), 1, "Borin einmal")
+    eq(goldRecs(1000)[1].player, "Borin Donnerhuf", "Borin mit Namen")
+    eq(#goldRecs(27), 1, "Serania einmal")
+    eq(goldRecs(27)[1].player, "Serania Storm", "Serania mit Namen")
+end)
+
+test("Geld-Log: repair und withdraw desselben Eintrags zaehlen einmal", function()
+    table.insert(Stub.bank.money, { type = "repair", name = "Lootbert Greedy", amount = 661, hours = 8 })
+    RunBankVisit()
+    eq(#goldRecs(661), 1, "nach repair")
+    Stub.bank.money[#Stub.bank.money].type = "withdraw"
+    RunBankVisit()
+    eq(#goldRecs(661), 1, "nach withdraw kein zweiter")
+    -- Altdaten: beide schon gespeichert, das Log sagt jetzt "withdraw"
+    inject("Lootbert Greedy", "repair", 875, 9)
+    inject("Lootbert Greedy", "withdraw", 875, 9)
+    table.insert(Stub.bank.money, { type = "withdraw", name = "Lootbert Greedy", amount = 875, hours = 9 })
+    RunBankVisit()
+    eq(#goldRecs(875), 1, "Altdaten bereinigt")
+    eq(goldRecs(875)[1].action, "withdraw", "wie das Log jetzt")
+end)
+
+test("Geld-Log: ? neben gleichem Betrag eines anderen Spielers bekommt den richtigen Namen", function()
+    inject("Lootbert Greedy", "deposit", 10000, 4)
+    inject("?", "deposit", 10000, 4)
+    table.insert(Stub.bank.money, { type = "deposit", name = "Lootbert Greedy", amount = 10000, hours = 4 })
+    table.insert(Stub.bank.money, { type = "deposit", name = "Krutolo Zitterhand", amount = 10000, hours = 4 })
+    RunBankVisit()
+    local names = {}
+    for _, tx in ipairs(goldRecs(10000)) do names[tx.player] = (names[tx.player] or 0) + 1 end
+    eq(#goldRecs(10000), 2, "zwei Einzahlungen")
+    eq(names["Lootbert Greedy"], 1, "Lootbert")
+    eq(names["Krutolo Zitterhand"], 1, "Krutolo nachgetragen")
+end)
+
+test("Geld-Log: echte gleiche Vorgaenge mit Namen bleiben einzeln", function()
+    table.insert(Stub.bank.money, { type = "withdraw", name = "Serania Storm", amount = 333, hours = 2 })
+    table.insert(Stub.bank.money, { type = "withdraw", name = "Serania Storm", amount = 333, hours = 2 })
+    RunBankVisit()
+    eq(#goldRecs(333), 2, "zwei Entnahmen")
+    RunBankVisit()
+    eq(#goldRecs(333), 2, "nach erneutem Scan")
+    local s = DB.GetGuildData().playerSummary
+    truthy(s, "Bilanzen vorhanden")
+end)
+
 out:write(("[%s] %d bestanden, %d fehlgeschlagen\n"):format(profile, passed, failed))
 os.exit(failed == 0 and 0 or 1)
