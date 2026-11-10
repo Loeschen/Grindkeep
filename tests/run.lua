@@ -464,5 +464,33 @@ test("Geld-Log: echte gleiche Vorgaenge mit Namen bleiben einzeln", function()
     truthy(s, "Bilanzen vorhanden")
 end)
 
+test("Geld-Log: ? kurz vor dem aeltesten sichtbaren Eintrag wird auch entfernt", function()
+    DB.AddTransaction({ ts = DB.Now() - 100.5 * 3600, player = "Marquez Gesegnet", kind = "gold", action = "deposit", amount = 4321 })
+    DB.AddTransaction({ ts = DB.Now() - 100.2 * 3600, player = "?", kind = "gold", action = "deposit", amount = 4321 })
+    table.insert(Stub.bank.money, { type = "deposit", name = "Marquez Gesegnet", amount = 4321, hours = 100 })
+    RunBankVisit()
+    eq(#goldRecs(4321), 1, "Marquez einmal")
+    eq(goldRecs(4321)[1].player, "Marquez Gesegnet", "mit Namen")
+end)
+
+test("Geld-Log: Name kommt erst nach dem Scan - wird bei offener Bank nachgetragen", function()
+    table.insert(Stub.bank.money, { type = "deposit", name = nil, amount = 5555, hours = 3 })
+    Stub.queries = {}
+    Stub.Fire("GUILDBANKFRAME_OPENED")
+    Stub.RunTimers()
+    local handled = 0
+    while handled < #Stub.queries and handled < 50 do
+        handled = handled + 1
+        Stub.Fire(Stub.queries[handled].kind == "log" and "GUILDBANKLOG_UPDATE" or "GUILDBANKBAGSLOTS_CHANGED")
+    end
+    eq(goldRecs(5555)[1].player, "?", "erst ohne Namen")
+    -- Jetzt kennt das Spiel den Namen; der verzoegerte Nachlese-Versuch laeuft
+    Stub.bank.money[#Stub.bank.money].name = "Krutolo Zitterhand"
+    Stub.RunTimers()
+    Stub.Fire("GUILDBANKFRAME_CLOSED")
+    eq(#goldRecs(5555), 1, "einmal")
+    eq(goldRecs(5555)[1].player, "Krutolo Zitterhand", "Name nachgetragen")
+end)
+
 out:write(("[%s] %d bestanden, %d fehlgeschlagen\n"):format(profile, passed, failed))
 os.exit(failed == 0 and 0 or 1)
